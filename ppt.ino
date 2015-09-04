@@ -32,9 +32,9 @@
 #define ADC_BAT_VOLTS_CHAN  2             // the adc channel to read battery volts
 
 #define PWM_FULL            1023          // the actual value used by the Timer1 routines for 100% pwm duty cycle
-#define PWM_MAX             100           // the value for pwm duty cyle 0-100%
-#define PWM_MIN             10            // the value for pwm duty cyle 0-100%
-#define PWM_START           90            // the value for pwm duty cyle 0-100%
+#define PWM_MAX             0.9*PWM_FULL  // the value for pwm duty cyle 0-100.0% (Resolution in 
+#define PWM_MIN             0.1*PWM_FULL  // the value for pwm duty cyle 0-100.0%
+#define PWM_START           0.1*PWM_FULL  // the value for pwm duty cyle 0-100.0%
 #define PWM_INC             1             // the value the increment to the pwm value for the ppt algorithm
 
 #define AVG_NUM             8             // number of iterations of the adc routine to average the adc readings
@@ -59,7 +59,7 @@ struct system_states_t {
    int sol_volts;                        // solar volts in 10 mV (scaled by 100)
    int bat_volts;                        // battery volts in 10 mV (scaled by 100)
    int sol_watts;                        // solar watts in 10 mV (scaled by 100)
-   uint8_t pwm_duty;
+   uint16_t pwm_duty;
 } power_status;
 
 unsigned int seconds = 0;             // seconds from timer routine
@@ -81,7 +81,7 @@ void setup()                            // run once, when the sketch starts
   Timer1.attachInterrupt(callback);    // attaches callback() as a timer overflow interrupt
   charger_state = on;                  // start with charger state as on
   
-  set_pwm_duty(40);
+  set_pwm_duty(PWM_START);
 }
 //------------------------------------------------------------------------------------------------------
 // This is interrupt service routine for Timer1 that occurs every 20uS.
@@ -149,7 +149,7 @@ void set_pwm_duty(int pwm) {
   power_status.pwm_duty = pwm;                             // store this value in the status
   
   if (pwm < PWM_MAX) {
-    Timer1.pwm(PWM_PIN,(PWM_FULL * (long)pwm / 100), 20); // use Timer1 routine to set pwm duty cycle at 20uS period
+    Timer1.pwm(PWM_PIN,pwm, 20); // use Timer1 routine to set pwm duty cycle at 20uS period
     //Timer1.pwm(PWM_PIN,(PWM_FULL * (long)pwm / 100));
   }												
   else if (pwm == PWM_MAX) {				  // if pwm set to 100% it will be on full but we have 
@@ -174,7 +174,7 @@ void print_data(void) {
   Serial.print("  ");
 
   Serial.print("pwm = ");
-  Serial.print(power_status.pwm_duty, DEC);
+  print_int100_dec2((long)power_status.pwm_duty * 10000 / (PWM_FULL - 1));
   Serial.print("  ");
 
   Serial.print("s_amps = ");
