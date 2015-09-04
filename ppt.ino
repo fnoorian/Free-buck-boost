@@ -24,6 +24,8 @@
 
 #define PWM_PIN             9             // the output pin for the pwm, connected to OC1A
 #define PWM_ENABLE_PIN      8             // pin used to control shutoff function of the IR2104 MOSFET driver
+#define TURN_ON_MOSFETS     digitalWrite(PWM_ENABLE_PIN, HIGH)     // enable MOSFET driver
+#define TURN_OFF_MOSFETS    digitalWrite(PWM_ENABLE_PIN, LOW)      // disable MOSFET driver
 
 #define ADC_SOL_AMPS_CHAN   1             // the adc channel to read solar amps
 #define ADC_SOL_VOLTS_CHAN  0             // the adc channel to read solar volts
@@ -34,13 +36,12 @@
 #define PWM_MIN             10            // the value for pwm duty cyle 0-100%
 #define PWM_START           90            // the value for pwm duty cyle 0-100%
 #define PWM_INC             1             // the value the increment to the pwm value for the ppt algorithm
-#define TURN_ON_MOSFETS     digitalWrite(PWM_ENABLE_PIN, HIGH)      // enable MOSFET driver
-#define TURN_OFF_MOSFETS    digitalWrite(PWM_ENABLE_PIN, LOW)      // disable MOSFET driver
 
 #define AVG_NUM             8             // number of iterations of the adc routine to average the adc readings
 #define SOL_AMPS_SCALE      0.74          // the scaling value for raw adc reading to get solar amps scaled by 100 [(1/(0.005*(3.3k/25))*(5/1023)*100]
 #define SOL_VOLTS_SCALE     2.7           // the scaling value for raw adc reading to get solar volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
 #define BAT_VOLTS_SCALE     2.7           // the scaling value for raw adc reading to get battery volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
+
 #define ONE_SECOND          50000         // count for number of interrupt in 1 second on interrupt period of 20us
 #define LOW_SOL_WATTS       500           // value of solar watts scaled by 100 so this is 5.00 watts
 #define MIN_SOL_WATTS       100           // value of solar watts scaled by 100 so this is 1.00 watts
@@ -53,17 +54,14 @@
 
 //------------------------------------------------------------------------------------------------------
 // global variables
-struct {
-   int sol_amps;                         // solar amps scaled by 100
-   int sol_volts;                        // solar volts scaled by 100
-   int bat_volts;                        // battery volts scaled by 100
-   int sol_watts;                        // solar watts scaled by 100
-   int pwm_duty;
+struct system_states_t {
+   int sol_amps;                         // solar amps in 10 mV (scaled by 100)
+   int sol_volts;                        // solar volts in 10 mV (scaled by 100)
+   int bat_volts;                        // battery volts in 10 mV (scaled by 100)
+   int sol_watts;                        // solar watts in 10 mV (scaled by 100)
+   uint8_t pwm_duty;
 } power_status;
 
-
-//int count = 0;
-//int pwm = 0;                          //pwm duty cycle 0-100%
 unsigned int seconds = 0;             // seconds from timer routine
   
 enum charger_mode {off, on, bulk, bat_float} charger_state;    // enumerated variable that holds state for charger state machine
@@ -75,7 +73,7 @@ void set_pwm_duty(int pwm);
 //------------------------------------------------------------------------------------------------------
 void setup()                            // run once, when the sketch starts
 {
-  Serial.begin(9600);                  // open the serial port at 9600 bps:
+  Serial.begin(115200);                  // open the serial port at 9600 bps:
   pinMode(PWM_ENABLE_PIN, OUTPUT);     // sets the digital pin as output
   Timer1.initialize(20);               // initialize timer1, and set a 20uS period
   Timer1.pwm(PWM_PIN, 0);              // setup pwm on pin 9, 0% duty cycle
@@ -334,24 +332,58 @@ void run_charger(void) {
 // the serial port takes. You can speed that up by speeding up the baud rate.
 // You can also run the commented out code and the charger routines will run once a second.
 //------------------------------------------------------------------------------------------------------
+
+void constant_power_control(int target_watts) {
+  static int old_sol_watts = 0;
+  
+  int current_watts = power_status.sol_watts;
+  int current_pwm = power_status.pwm_duty;
+  
+  if (target_watts < current_watts) {
+    current_pwm -= PWM_INC;
+  } else if (target_watts > current_watts) {
+    current_pwm += PWM_INC;
+  }
+  
+  set_pwm_duty(current_pwm);
+}
+
+void constant_voltage_control(int target_voltage) {
+  static int old_bat_volt = 0;
+  
+  int current_voltage = power_status.bat_volts;
+  int current_pwm = power_status.pwm_duty;
+  
+  if (target_voltage < current_voltage) {
+    current_pwm -= PWM_INC;
+  } else if (target_voltage > current_voltage) {
+    current_pwm += PWM_INC;
+  }
+  
+  set_pwm_duty(current_pwm);
+}
+
 void loop()                          // run over and over again
 {
   read_data();                         //read data from inputs
   //run_charger();                      //run the charger state machine
   print_data();                       //print data
   
+  static int current_power = 2;
   static unsigned int prev_seconds = 0;        // seconds value from previous pass
-  if ((seconds - prev_seconds) > 0) {  
+  if ((seconds - prev_seconds) > 2) {  
     prev_seconds = seconds;		// do this stuff once a second
 
-    if (power_status.pwm_duty >= 90) {
-      set_pwm_duty(10);
+    if (current_power >= 1000) {
+      current_power = 100;
     }
     else {
-      set_pwm_duty(power_status.pwm_duty + 10);
+      current_power += 100;
     }
   }
 
+  constant_voltage_control(current_power);
+  
 //    read_data();                         //read data from inputs
 //    run_charger();
 //    print_data();                       //print data
