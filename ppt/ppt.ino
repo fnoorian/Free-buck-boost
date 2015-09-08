@@ -38,7 +38,7 @@
 #define PWM_INC             1             // the value the increment to the pwm value for the ppt algorithm
 
 #define AVG_NUM             8             // number of iterations of the adc routine to average the adc readings
-#define SOL_AMPS_SCALE      0.74          // the scaling value for raw adc reading to get solar amps scaled by 100 [(1/(0.005*(3.3k/25))*(5/1023)*100]
+#define SOL_AMPS_SCALE      0.5           // the scaling value for raw adc reading to get solar amps scaled by 100 [(1/(0.005*(3.3k/25))*(5/1023)*100]
 #define SOL_VOLTS_SCALE     2.7           // the scaling value for raw adc reading to get solar volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
 #define BAT_VOLTS_SCALE     2.7           // the scaling value for raw adc reading to get battery volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
 
@@ -374,18 +374,19 @@ void loop()                          // run over and over again
   
   static int current_power = 0;
   static unsigned int prev_seconds = 0;        // seconds value from previous pass
-  if ((seconds - prev_seconds) > 2) {  
+  if ((seconds - prev_seconds) > 4) {  
     prev_seconds = seconds;		// do this stuff once a second
 
-    if (current_power >= 1000) {
+    if (current_power >= 250) {
       current_power = 100;
     }
     else {
-      current_power += 100;
+      current_power += 50;
     }
   }
 
-  constant_voltage_control(current_power);
+  //constant_voltage_control(current_power);
+  constant_power_control(current_power);
 
   static int print_counter = 0;
   print_counter++;
