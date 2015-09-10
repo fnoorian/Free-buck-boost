@@ -35,7 +35,8 @@
 #define PWM_MAX             0.9*PWM_FULL  // the value for pwm duty cyle 0-100.0% (Resolution in 
 #define PWM_MIN             0.1*PWM_FULL  // the value for pwm duty cyle 0-100.0%
 #define PWM_START           0.1*PWM_FULL  // the value for pwm duty cyle 0-100.0%
-#define PWM_INC             1             // the value the increment to the pwm value for the ppt algorithm
+
+#define PWM_INC             4             // the value the increment to the pwm value for the ppt algorithm
 
 #define AVG_NUM             8             // number of iterations of the adc routine to average the adc readings
 #define SOL_AMPS_SCALE      0.5           // the scaling value for raw adc reading to get solar amps scaled by 100 [(1/(0.005*(3.3k/25))*(5/1023)*100]
@@ -69,6 +70,50 @@ enum charger_mode {off, on, bulk, bat_float} charger_state;    // enumerated var
 void set_pwm_duty(int pwm);
 
 //------------------------------------------------------------------------------------------------------
+// Circular buffer type for ADC averaging filter
+class LowPassBuffer {
+  public:
+    const static int N = 32;
+
+    void Init(void) {
+      data_len = 0;
+      current_pointer = 0;
+    }
+
+    void AddData(int x) {
+      buffer[current_pointer] = x;
+
+      current_pointer++;
+      if (current_pointer >= N) {
+        current_pointer = 0;
+      }
+
+      data_len++;
+      if (data_len > N) {
+        data_len = N;
+      }
+    }
+
+    int GetAverage() {
+      int sum = 0;
+      for (uint8_t i=0; i<data_len;i++) {
+        sum += buffer[i];
+      }
+
+      return (sum / data_len);
+    }
+        
+  private:
+    int buffer[N];
+    uint8_t data_len;
+    uint8_t current_pointer;
+};
+
+LowPassBuffer lpf_in_volts;
+LowPassBuffer lpf_in_amps;
+LowPassBuffer lpf_out_volts;
+
+//------------------------------------------------------------------------------------------------------
 // This routine is automatically called at powerup/reset
 //------------------------------------------------------------------------------------------------------
 void setup()                            // run once, when the sketch starts
@@ -82,6 +127,10 @@ void setup()                            // run once, when the sketch starts
   charger_state = on;                  // start with charger state as on
   
   set_pwm_duty(PWM_START);
+
+  lpf_in_volts.Init();
+  lpf_out_volts.Init();
+  lpf_in_amps.Init();
 }
 //------------------------------------------------------------------------------------------------------
 // This is interrupt service routine for Timer1 that occurs every 20uS.
@@ -102,6 +151,7 @@ void callback()
 // battery volts. It is called with the adc channel number (pin number) and returns the average adc 
 // value as an integer. 
 //------------------------------------------------------------------------------------------------------
+/*
 int read_adc(int channel){
   
   int sum = 0;
@@ -113,6 +163,7 @@ int read_adc(int channel){
   }
   return(sum / AVG_NUM);                // divide sum by AVG_NUM to get average and return it
 }
+*/
 //-----------------------------------------------------------------------------------
 // This function prints int that was scaled by 100 with 2 decimal places
 //-----------------------------------------------------------------------------------
@@ -205,11 +256,20 @@ void print_data(void) {
 // watts from the solar amps times the solar voltage and rounds and scales that by 100 (2 decimal places) also.
 //------------------------------------------------------------------------------------------------------
 void read_data(void) {
-  
-  power_status.sol_amps =  SOL_AMPS_SCALE * read_adc(ADC_SOL_AMPS_CHAN) ;// * read_adc(ADC_SOL_AMPS_CHAN); //((read_adc(ADC_SOL_AMPS_CHAN)  * SOL_AMPS_SCALE) + 5) / 10;    //input of solar amps result scaled by 100
-  power_status.sol_volts = SOL_VOLTS_SCALE * read_adc(ADC_SOL_VOLTS_CHAN); //((read_adc(ADC_SOL_VOLTS_CHAN) * SOL_VOLTS_SCALE) + 5) / 10;   //input of solar volts result scaled by 100
-  power_status.bat_volts = BAT_VOLTS_SCALE * read_adc(ADC_BAT_VOLTS_CHAN); // ((read_adc(ADC_BAT_VOLTS_CHAN) * BAT_VOLTS_SCALE) + 5) / 10;   //input of battery volts result scaled by 100
+
+  lpf_in_volts.AddData(  analogRead(ADC_SOL_VOLTS_CHAN) );
+  lpf_out_volts.AddData( analogRead(ADC_BAT_VOLTS_CHAN) );
+  lpf_in_amps.AddData(   analogRead(ADC_SOL_AMPS_CHAN) );
+
+  power_status.sol_amps =  SOL_AMPS_SCALE * lpf_in_amps.GetAverage();
+  power_status.sol_volts = SOL_VOLTS_SCALE * lpf_in_volts.GetAverage();
+  power_status.bat_volts = BAT_VOLTS_SCALE * lpf_out_volts.GetAverage();
   power_status.sol_watts = (int)((((long)power_status.sol_amps * (long)power_status.sol_volts) + 50) / 100);    //calculations of solar watts scaled by 10000 divide by 100 to get scaled by 100                 
+
+//  power_status.sol_amps =  SOL_AMPS_SCALE * read_adc(ADC_SOL_AMPS_CHAN) ;// * read_adc(ADC_SOL_AMPS_CHAN); //((read_adc(ADC_SOL_AMPS_CHAN)  * SOL_AMPS_SCALE) + 5) / 10;    //input of solar amps result scaled by 100
+//  power_status.sol_volts = SOL_VOLTS_SCALE * read_adc(ADC_SOL_VOLTS_CHAN); //((read_adc(ADC_SOL_VOLTS_CHAN) * SOL_VOLTS_SCALE) + 5) / 10;   //input of solar volts result scaled by 100
+//  power_status.bat_volts = BAT_VOLTS_SCALE * read_adc(ADC_BAT_VOLTS_CHAN); // ((read_adc(ADC_BAT_VOLTS_CHAN) * BAT_VOLTS_SCALE) + 5) / 10;   //input of battery volts result scaled by 100
+//  power_status.sol_watts = (int)((((long)power_status.sol_amps * (long)power_status.sol_volts) + 50) / 100);    //calculations of solar watts scaled by 10000 divide by 100 to get scaled by 100                 
 }
 //------------------------------------------------------------------------------------------------------
 // This routine is the charger state machine. It has four states on, off, bulk and float.
@@ -371,29 +431,35 @@ void loop()                          // run over and over again
 {
   read_data();                         //read data from inputs
   //MPPT_state_machine();                      //run the charger state machine
-  
+
+  // update power info
   static int current_power = 0;
   static unsigned int prev_seconds = 0;        // seconds value from previous pass
   if ((seconds - prev_seconds) > 4) {  
     prev_seconds = seconds;		// do this stuff once a second
 
-    if (current_power >= 250) {
+    if (current_power >= 400) {
       current_power = 100;
     }
     else {
-      current_power += 50;
+      current_power += 100;
     }
   }
 
   //constant_voltage_control(current_power);
-  constant_power_control(current_power);
+  //constant_voltage_control(500);
+  //constant_power_control(current_power);
+  constant_power_control(150);
 
+  // diagnosistic prints
   static int print_counter = 0;
   print_counter++;
-  if (print_counter > 10) {
-    print_data();                       //print data
+  if (print_counter > 200) {
+    print_data(); 
+    print_counter = 0;
   }
-  
+
+
 //    read_data();                         //read data from inputs
 //    MPPT_state_machine();
 //    print_data();                       //print data
