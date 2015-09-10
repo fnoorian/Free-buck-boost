@@ -398,30 +398,42 @@ void MPPT_state_machine(void) {
 //------------------------------------------------------------------------------------------------------
 
 void constant_power_control(int target_watts) {
-  static int old_sol_watts = 0;
-  
-  int current_watts = power_status.sol_watts;
+ 
   int current_pwm = power_status.pwm_duty;
-  
-  if (target_watts < current_watts) {
-    current_pwm -= PWM_INC;
-  } else if (target_watts > current_watts) {
-    current_pwm += PWM_INC;
+  int target_difference = target_watts - power_status.sol_watts;
+
+  // if target difference is large, use big steps
+  int pwm_delta = 1;
+  if (abs(target_difference) > 100) {
+    pwm_delta = 16;
+  }
+
+  // adjust pwm either up or down based on difference sign
+  if (target_difference < 0) {
+    current_pwm -= pwm_delta;
+  } else if (target_difference > 0) {
+    current_pwm += pwm_delta;
   }
   
   set_pwm_duty(current_pwm);
 }
 
 void constant_voltage_control(int target_voltage) {
-  static int old_bat_volt = 0;
   
-  int current_voltage = power_status.bat_volts;
   int current_pwm = power_status.pwm_duty;
-  
-  if (target_voltage < current_voltage) {
-    current_pwm -= PWM_INC;
-  } else if (target_voltage > current_voltage) {
-    current_pwm += PWM_INC;
+  int target_difference = target_voltage - power_status.bat_volts;
+
+  // if target difference is large, use big steps
+  int pwm_delta = 1;
+  if (abs(target_difference) > 100) {
+    pwm_delta = 16;
+  }
+
+  // adjust pwm either up or down based on difference sign
+  if (target_difference < 0) {
+    current_pwm -= pwm_delta;
+  } else if (target_difference > 0) {
+    current_pwm += pwm_delta;
   }
   
   set_pwm_duty(current_pwm);
