@@ -55,25 +55,28 @@
 
 //------------------------------------------------------------------------------------------------------
 // global variables
+enum charger_mode_t {off, mppt_on, auto_off, bulk, bat_float, const_volt, const_power};
+
 struct system_states_t {
    int sol_amps;                         // solar amps in 10 mV (scaled by 100)
    int sol_volts;                        // solar volts in 10 mV (scaled by 100)
    int bat_volts;                        // battery volts in 10 mV (scaled by 100)
    int sol_watts;                        // solar watts in 10 mV (scaled by 100)
-   uint16_t pwm_duty;
+   uint16_t pwm_duty;                    // pwm target duty cycle, set by set_pwm_duty function
+   int target;                           // voltage or power target
+   charger_mode_t mode;                  // state of the charge state machine
 } power_status;
 
 unsigned int seconds = 0;             // seconds from timer routine
   
-enum charger_mode {off, on, bulk, bat_float} charger_state;    // enumerated variable that holds state for charger state machine
-
+// enumerated variable that holds state for charger state machine
 void set_pwm_duty(int pwm);
 
 //------------------------------------------------------------------------------------------------------
 // Circular buffer type for ADC averaging filter
 class LowPassBuffer {
   public:
-    const static int N = 32;
+    const static int N = AVG_NUM;
 
     void Init(void) {
       data_len = 0;
@@ -114,69 +117,17 @@ LowPassBuffer lpf_in_amps;
 LowPassBuffer lpf_out_volts;
 
 //------------------------------------------------------------------------------------------------------
-// This routine is automatically called at powerup/reset
-//------------------------------------------------------------------------------------------------------
-void setup()                            // run once, when the sketch starts
-{
-  Serial.begin(115200);                  // open the serial port at 9600 bps:
-  pinMode(PWM_ENABLE_PIN, OUTPUT);     // sets the digital pin as output
-  Timer1.initialize(20);               // initialize timer1, and set a 20uS period
-  Timer1.pwm(PWM_PIN, 0);              // setup pwm on pin 9, 0% duty cycle
-  TURN_ON_MOSFETS;                     //turn on MOSFET driver chip
-  Timer1.attachInterrupt(callback);    // attaches callback() as a timer overflow interrupt
-  charger_state = on;                  // start with charger state as on
-  
-  set_pwm_duty(PWM_START);
-
-  lpf_in_volts.Init();
-  lpf_out_volts.Init();
-  lpf_in_amps.Init();
-}
-//------------------------------------------------------------------------------------------------------
 // This is interrupt service routine for Timer1 that occurs every 20uS.
 // It is only used to incremtent the seconds counter. 
 // Timer1 is also used to generate the pwm output.
 //------------------------------------------------------------------------------------------------------
-void callback()
+void timer_callback()
 {
   static unsigned int interrupt_counter = 0;     // counter for 20us interrrupt
 
   if (interrupt_counter++ > ONE_SECOND) {        //increment interrupt_counter until one second has passed
     interrupt_counter = 0;  
     seconds++;                                   //then increment seconds counter
-  }
-}
-//------------------------------------------------------------------------------------------------------
-// This routine reads and averages the analog inputs for this system, solar volts, solar amps and 
-// battery volts. It is called with the adc channel number (pin number) and returns the average adc 
-// value as an integer. 
-//------------------------------------------------------------------------------------------------------
-/*
-int read_adc(int channel){
-  
-  int sum = 0;
-  
-  for (int i=0; i<AVG_NUM; i++) {            // loop through reading raw adc values AVG_NUM number of times  
-    int temp = analogRead(channel);          // read the input pin  
-    sum += temp;                        // store sum for averaging
-    delayMicroseconds(50);              // pauses for 50 microseconds  
-  }
-  return(sum / AVG_NUM);                // divide sum by AVG_NUM to get average and return it
-}
-*/
-//-----------------------------------------------------------------------------------
-// This function prints int that was scaled by 100 with 2 decimal places
-//-----------------------------------------------------------------------------------
-void print_int100_dec2(int temp) {
-
-  Serial.print(temp/100,DEC);        // divide by 100 and print interger value
-  Serial.print(".");
-  if ((temp%100) < 10) {              // if fractional value has only one digit
-    Serial.print("0");               // print a "0" to give it two digits
-    Serial.print(temp%100,DEC);      // get remainder and print fractional value
-  }
-  else {
-    Serial.print(temp%100,DEC);      // get remainder and print fractional value
   }
 }
 //------------------------------------------------------------------------------------------------------
@@ -209,6 +160,21 @@ void set_pwm_duty(int pwm) {
   }												
 }													
 
+//-----------------------------------------------------------------------------------
+// This function prints int that was scaled by 100 with 2 decimal places
+//-----------------------------------------------------------------------------------
+void print_int100_dec2(int temp) {
+
+  Serial.print(temp/100,DEC);        // divide by 100 and print interger value
+  Serial.print(".");
+  if ((temp%100) < 10) {              // if fractional value has only one digit
+    Serial.print("0");               // print a "0" to give it two digits
+    Serial.print(temp%100,DEC);      // get remainder and print fractional value
+  }
+  else {
+    Serial.print(temp%100,DEC);      // get remainder and print fractional value
+  }
+}
 //------------------------------------------------------------------------------------------------------
 // This routine prints all the data out to the serial port.
 //------------------------------------------------------------------------------------------------------
@@ -218,11 +184,17 @@ void print_data(void) {
   Serial.print("  ");
 
   Serial.print("charger = ");
-  if (charger_state == on) Serial.print("on   ");
-  else if (charger_state == off) Serial.print("off  ");
-  else if (charger_state == bulk) Serial.print("bulk ");
-  else if (charger_state == bat_float) Serial.print("float");
+  if (power_status.mode == off)              Serial.print("off    ");
+  else if (power_status.mode == mppt_on)     Serial.print("mppt   ");
+  else if (power_status.mode == auto_off)    Serial.print("autooff");
+  else if (power_status.mode == bulk)        Serial.print("bulk   ");
+  else if (power_status.mode == bat_float)   Serial.print("float  ");
+  else if (power_status.mode == const_volt)  Serial.print("volt   ");
+  else if (power_status.mode == const_power) Serial.print("watt   ");
   Serial.print("  ");
+
+  Serial.print("target = ");
+  print_int100_dec2(power_status.target);
 
   Serial.print("pwm = ");
   print_int100_dec2((long)power_status.pwm_duty * 10000 / (PWM_FULL - 1));
@@ -233,8 +205,6 @@ void print_data(void) {
   Serial.print("  ");
 
   Serial.print("s_volts = ");
-  //Serial.print(sol_volts,DEC);
-  //Serial.print("  ");
   print_int100_dec2(power_status.sol_volts);
   Serial.print("  ");
 
@@ -243,7 +213,6 @@ void print_data(void) {
   Serial.print("  ");
 
   Serial.print("b_volts = ");
-  //Serial.print(bat_volts,DEC);
   print_int100_dec2(power_status.bat_volts);
   Serial.print("  ");
 
@@ -308,15 +277,15 @@ void MPPT_state_machine(void) {
   int bat_volts = power_status.bat_volts;
   int sol_volts = power_status.sol_volts;
   
-  switch (charger_state) {
-    case on:                                        
+  switch (power_status.mode) {
+    case mppt_on:                                        
       if (sol_watts < MIN_SOL_WATTS) {              //if watts input from the solar panel is less than
-        charger_state = off;                        //the minimum solar watts then it is getting dark so
+        power_status.mode = auto_off;               //the minimum solar watts then it is getting dark so
         off_count = OFF_NUM;                        //go to the charger off state
         TURN_OFF_MOSFETS; 
       }
       else if (bat_volts > MAX_BAT_VOLTS) {        //else if the battery voltage has gotten above the float
-        charger_state = bat_float;                 //battery float voltage go to the charger battery float state
+        power_status.mode = bat_float;                 //battery float voltage go to the charger battery float state
       }
       else if (sol_watts < LOW_SOL_WATTS) {        //else if the solar input watts is less than low solar watts
         pwm = PWM_MAX;                             //it means there is not much power being generated by the solar panel
@@ -324,20 +293,20 @@ void MPPT_state_machine(void) {
       }                                            //and stay in the charger on state
       else {                                          
         pwm = ((bat_volts * 10) / (sol_volts / 10)) + 5;  //else if we are making more power than low solar watts figure out what the pwm
-        charger_state = bulk;                              //value should be and change the charger to bulk state 
+        power_status.mode = bulk;                              //value should be and change the charger to bulk state 
       }
       break;
     case bulk:
       if (sol_watts < MIN_SOL_WATTS) {          //if watts input from the solar panel is less than
-        charger_state = off;                    //the minimum solar watts then it is getting dark so
+        power_status.mode = auto_off;                    //the minimum solar watts then it is getting dark so
         off_count = OFF_NUM;                    //go to the charger off state
         TURN_OFF_MOSFETS; 
       }
       else if (bat_volts > MAX_BAT_VOLTS) {     //else if the battery voltage has gotten above the float
-        charger_state = bat_float;              //battery float voltage go to the charger battery float state
+        power_status.mode = bat_float;              //battery float voltage go to the charger battery float state
       }
       else if (sol_watts < LOW_SOL_WATTS) {     //else if the solar input watts is less than low solar watts
-        charger_state = on;                     //it means there is not much power being generated by the solar panel
+        power_status.mode = mppt_on;                     //it means there is not much power being generated by the solar panel
         TURN_ON_MOSFETS;                        //so go to charger on state
       }
       else {                                    // this is where we do the Peak Power Tracking ro Maximum Power Point algorithm
@@ -351,7 +320,7 @@ void MPPT_state_machine(void) {
       break;
     case bat_float:
       if (sol_watts < MIN_SOL_WATTS) {          //if watts input from the solar panel is less than
-        charger_state = off;                    //the minimum solar watts then it is getting dark so
+        power_status.mode = auto_off;                    //the minimum solar watts then it is getting dark so
         off_count = OFF_NUM;                    //go to the charger off state
         set_pwm_duty(pwm);					
         TURN_OFF_MOSFETS; 
@@ -364,23 +333,23 @@ void MPPT_state_machine(void) {
         pwm += 1;                              //increment the pwm to get it back up to the float voltage
         set_pwm_duty(pwm);					
         if (pwm >= 100) {                      //if pwm gets up to 100 it means we can't keep the battery at
-          charger_state = bulk;                //float voltage so jump to charger bulk state to charge the battery
+          power_status.mode = bulk;                //float voltage so jump to charger bulk state to charge the battery
         }
       }
       break;
-    case off:                                  //when we jump into the charger off state, off_count is set with OFF_NUM
+    case auto_off:                                  //when we jump into the charger off state, off_count is set with OFF_NUM
       if (off_count > 0) {                     //this means that we run through the off state OFF_NUM of times with out doing
         off_count--;                           //anything, this is to allow the battery voltage to settle down to see if the  
       }                                        //battery has been disconnected
       else if ((bat_volts > HIGH_BAT_VOLTS) && (bat_volts < MAX_BAT_VOLTS) && (sol_volts > bat_volts)) {
-        charger_state = bat_float;             //if battery voltage is still high and solar volts are high
+        power_status.mode = bat_float;             //if battery voltage is still high and solar volts are high
         set_pwm_duty(pwm);		       //change charger state to battery float			
         TURN_ON_MOSFETS; 
       }
       else if ((bat_volts > MIN_BAT_VOLTS) && (bat_volts < MAX_BAT_VOLTS) && (sol_volts > bat_volts)) {
-        pwm = PWM_START;                        //if battery volts aren't quite so high but we have solar volts
-        set_pwm_duty(pwm);			//greater than battery volts showing it is day light then	
-        charger_state = on;                     //change charger state to on so we start charging
+        pwm = PWM_START;                        // if battery volts aren't quite so high but we have solar volts
+        set_pwm_duty(pwm);			                // greater than battery volts showing it is day light then	
+        power_status.mode = mppt_on;            // change charger state to on so we start charging
         TURN_ON_MOSFETS; 
       }
       break;
@@ -391,14 +360,13 @@ void MPPT_state_machine(void) {
 }
 
 //------------------------------------------------------------------------------------------------------
-// Main loop.
-// Right now the number of times per second that this main loop runs is set by how long the printing to 
-// the serial port takes. You can speed that up by speeding up the baud rate.
-// You can also run the commented out code and the charger routines will run once a second.
+// PWM Adjustments for constant voltage and constant power modes.
+// If "target_difference" > 0, it increases PWM
+// If "target_difference" < 0, it decreases PWM
+// The PWM step adjustment depends on the difference between target and current voltage/power
 //------------------------------------------------------------------------------------------------------
+void adjust_pwm(int target_difference) {
 
-void constant_power_control(int target_watts) {
- 
   int current_pwm = power_status.pwm_duty;
   int target_difference = target_watts - power_status.sol_watts;
 
@@ -418,63 +386,112 @@ void constant_power_control(int target_watts) {
   set_pwm_duty(current_pwm);
 }
 
-void constant_voltage_control(int target_voltage) {
-  
-  int current_pwm = power_status.pwm_duty;
-  int target_difference = target_voltage - power_status.bat_volts;
+void state_switch(charger_mode_t mode, int target = 0) {
 
-  // if target difference is large, use big steps
-  int pwm_delta = 1;
-  if (abs(target_difference) > 100) {
-    pwm_delta = 16;
-  }
+  switch (mode) {
+    case off:
+      TURN_OFF_MOSFETS;
+      power_status.mode = mode;
+      break;
+      
+    case const_volt:
+      TURN_ON_MOSFETS;
+      power_status.mode = mode;
+      power_status.target = target;
+      break;
+      
+    case const_power:
+      TURN_ON_MOSFETS;
+      power_status.mode = mode;
+      power_status.target = target;
+      break;
 
-  // adjust pwm either up or down based on difference sign
-  if (target_difference < 0) {
-    current_pwm -= pwm_delta;
-  } else if (target_difference > 0) {
-    current_pwm += pwm_delta;
+    case mppt_on:
+      TURN_ON_MOSFETS;
+      power_status.mode = mode;
+      break;
+
+    default:
+      break;
   }
-  
-  set_pwm_duty(current_pwm);
 }
+
+// State machine for different modes
+void state_machine(void) {
+  switch (power_status.mode) {
+    case const_volt:
+      adjust_pwm(power_status.target - power_status.bat_volts);
+      break;
+    case const_power:
+      adjust_pwm(power_status.target - power_status.sol_watts);
+      break;
+    case off:
+      break; // do nothing if it is in off mode
+    // other cases: call mppt state-machine
+    default:
+      MPPT_state_machine();
+      break;
+  }
+}
+
+//------------------------------------------------------------------------------------------------------
+// This routine is automatically called at powerup/reset
+//------------------------------------------------------------------------------------------------------
+void setup()                               // run once, when the sketch starts
+{
+  Serial.begin(115200);                    // open the serial port at 9600 bps:
+  Timer1.initialize(20);                   // initialize timer1, and set a 20uS period
+  Timer1.pwm(PWM_PIN, 0);                  // setup pwm on pin 9, 0% duty cycle
+  Timer1.attachInterrupt(timer_callback);  // attaches timer_callback() as a timer overflow interrupt
+
+  pinMode(PWM_ENABLE_PIN, OUTPUT);         // sets the digital pin as output
+  TURN_OFF_MOSFETS;                        // turn on MOSFET driver chip
+  set_pwm_duty(PWM_START);
+
+  lpf_in_volts.Init();                     // initialize ADC low-pass filters
+  lpf_out_volts.Init();
+  lpf_in_amps.Init();
+
+  //state_switch(off);                       // start with charger state as off
+  state_switch(const_volt, 300);                       // start with charger state as off
+}
+
+//------------------------------------------------------------------------------------------------------
+// Main loop.
+// Right now the number of times per second that this main loop runs is set by how long the printing to 
+// the serial port takes. You can speed that up by speeding up the baud rate.
+// You can also run the commented out code and the charger routines will run once a second.
+//------------------------------------------------------------------------------------------------------
 
 void loop()                          // run over and over again
 {
   read_data();                         //read data from inputs
-  //MPPT_state_machine();                      //run the charger state machine
+  state_machine();                     //run the state machine
 
+  /*
   // update power info
-  static int current_power = 0;
+  static int current_target = 0;
   static unsigned int prev_seconds = 0;        // seconds value from previous pass
   if ((seconds - prev_seconds) > 4) {  
     prev_seconds = seconds;		// do this stuff once a second
 
-    if (current_power >= 400) {
-      current_power = 100;
+    if (current_target >= 400) {
+      current_target = 0;
     }
     else {
-      current_power += 100;
+      current_target = 400;
     }
-  }
 
-  //constant_voltage_control(current_power);
-  //constant_voltage_control(500);
-  //constant_power_control(current_power);
-  constant_power_control(150);
-
+    state_switch(const_power, current_target);
+    //state_switch(const_volt, current_target);
+  }*/
+  
   // diagnosistic prints
   static int print_counter = 0;
   print_counter++;
-  if (print_counter > 200) {
-    print_data(); 
+  if (print_counter > 50) {
+    print_data_json(); 
     print_counter = 0;
   }
-
-
-//    read_data();                         //read data from inputs
-//    MPPT_state_machine();
-//    print_data();                       //print data
-//  }
 }
 //------------------------------------------------------------------------------------------------------
