@@ -368,14 +368,10 @@ void MPPT_state_machine(void) {
 void adjust_pwm(int target_difference) {
 
   int current_pwm = power_status.pwm_duty;
-  int target_difference = target_watts - power_status.sol_watts;
 
-  // if target difference is large, use big steps
-  int pwm_delta = 1;
-  if (abs(target_difference) > 100) {
-    pwm_delta = 16;
-  }
-
+  // proportional delta control
+  int pwm_delta = 1 + (abs(target_difference) / 25);
+  
   // adjust pwm either up or down based on difference sign
   if (target_difference < 0) {
     current_pwm -= pwm_delta;
