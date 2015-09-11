@@ -218,6 +218,40 @@ void print_data(void) {
 
   Serial.print("\n\r");
 }
+
+void print_data_json(void) {
+  Serial.print("{\"time\": ");
+  Serial.print(seconds, DEC);
+
+  Serial.print(", \"state\": ");
+  if (power_status.mode == off)              Serial.print("\"off\",  ");
+  else if (power_status.mode == mppt_on)     Serial.print("\"mppt\",   ");
+  else if (power_status.mode == auto_off)    Serial.print("\"autooff\",");
+  else if (power_status.mode == bulk)        Serial.print("\"bulk\", ");
+  else if (power_status.mode == bat_float)   Serial.print("\"float\",");
+  else if (power_status.mode == const_volt)  Serial.print("\"volt\", ");
+  else if (power_status.mode == const_power) Serial.print("\"watt\", ");
+
+  Serial.print(" \"target\": ");
+  print_int100_dec2(power_status.target);
+
+  Serial.print(", \"pwm\": ");
+  print_int100_dec2((long)power_status.pwm_duty * 10000 / (PWM_FULL - 1));
+
+  Serial.print(", \"volts_in\": ");
+  print_int100_dec2(power_status.sol_volts);
+
+  Serial.print(", \"volts_out\": ");
+  print_int100_dec2(power_status.bat_volts);
+
+  Serial.print(", \"amps_in\": ");
+  print_int100_dec2(power_status.sol_amps);
+
+  Serial.print(", \"watts_in\": ");
+  print_int100_dec2(power_status.sol_watts);
+
+  Serial.println("}");
+}
 //------------------------------------------------------------------------------------------------------
 // This routine reads all the analog input values for the system. Then it multiplies them by the scale
 // factor to get actual value in volts or amps. Then it adds on a rounding value before dividing to get
