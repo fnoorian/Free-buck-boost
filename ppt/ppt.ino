@@ -515,6 +515,18 @@ void loop()                          // run over and over again
     state_switch(const_power, current_target);
     //state_switch(const_volt, current_target);
   }*/
+
+  //TODO:
+  // Get data from serial
+  // Parse data
+  // if is "{P=0400}"
+  // state_switch(const_power, 400);
+  // if is "{V=0400}"
+  // state_switch(const_volt, 400);
+  // if is "{MPPT=1}"
+  // state_switch(mppt_on);
+  // if is "{OFF=1}"
+  // state_switch(off);
   
   // diagnosistic prints
   static int print_counter = 0;
