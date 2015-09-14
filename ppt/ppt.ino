@@ -464,6 +464,38 @@ void state_machine(void) {
   }
 }
 
+void get_serial_command() {
+  /* Variables used for parsing and tokenising */
+  char cmd[BUFF_MAX]; // char string to store the command
+  int val;  // Integer to store value
+
+  char in_buff[BUFF_MAX]; // Buffer in input
+  int end = Serial.readBytesUntil('}', in_buff, BUFF_MAX); // Read command from serial monitor
+  in_buff[end] = 0; // null terminate the string
+
+  sscanf(in_buff, "{%[^= ] = %d}", cmd, &val); // parse the string
+
+  #define stricmp strcasecmp // strangely, arduino uses a different API
+
+  if(!stricmp(cmd,"P")) {
+    state_switch(const_power,val);
+  }
+  else if(!stricmp(cmd,"V")) {
+    state_switch(const_volt,val);
+  }
+  else if(!stricmp(cmd,"MPPT") && val) {
+    state_switch(mppt_on); 
+  }
+  else if(!stricmp(cmd,"OFF") && val) {
+    state_switch(off);
+  }
+  else {
+    Serial.print("{\"time\": ");
+    Serial.print(seconds, DEC);
+    Serial.println(", \"state\": \"read_err\"}");
+  }
+}
+
 //------------------------------------------------------------------------------------------------------
 // This routine is automatically called at powerup/reset
 //------------------------------------------------------------------------------------------------------
@@ -516,17 +548,9 @@ void loop()                          // run over and over again
     //state_switch(const_volt, current_target);
   }*/
 
-  //TODO:
-  // Get data from serial
-  // Parse data
-  // if is "{P=0400}"
-  // state_switch(const_power, 400);
-  // if is "{V=0400}"
-  // state_switch(const_volt, 400);
-  // if is "{MPPT=1}"
-  // state_switch(mppt_on);
-  // if is "{OFF=1}"
-  // state_switch(off);
+  if (Serial.available() >= 4) {
+    get_serial_command();
+  }
   
   // diagnosistic prints
   static int print_counter = 0;
