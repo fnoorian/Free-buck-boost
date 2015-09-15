@@ -52,10 +52,19 @@
 #define OFF_NUM             9             // number of iterations of off charger state
   
 #define PIN_LED             13            // LED connected to digital pin 13
+#define BUFF_MAX            16            // Maximum buffer size for receiving from serial
 
 //------------------------------------------------------------------------------------------------------
 // global variables
-enum charger_mode_t {off, mppt_on, auto_off, bulk, bat_float, const_volt, const_power, const_pwm};
+enum charger_mode_t {MODE_OFF,            // The system is off
+                     MODE_MPPT_ON,        // MPPT mode
+                     MODE_MPPT_OFF,       // MPPT auto-off mode
+                     MODE_MPPT_BULK,      // MPPT bulck charger
+                     MODE_MPPT_BAT_FLOAT, // MPPT batt float mode
+                     MODE_CONST_VOLT,     // Constant voltage mode
+                     MODE_CONST_POWER,    // Constant power mode
+                     MODE_CONST_DUTY      // Constant duty cycle mode
+                    };
 
 struct system_states_t {
    int sol_amps;                         // solar amps in 10 mV (scaled by 100)
@@ -151,10 +160,10 @@ void set_pwm_duty(int pwm) {
   power_status.pwm_duty = pwm;                             // store this value in the status
   
   if (pwm < PWM_MAX) {
-    Timer1.pwm(PWM_PIN,pwm, 20); // use Timer1 routine to set pwm duty cycle at 20uS period
+    Timer1.pwm(PWM_PIN,pwm, 20);                           // use Timer1 routine to set pwm duty cycle at 20uS period
     //Timer1.pwm(PWM_PIN,(PWM_FULL * (long)pwm / 100));
   }												
-  else if (pwm == PWM_MAX) {				  // if pwm set to 100% it will be on full but we have 
+  else if (pwm == PWM_MAX) {				                      // if pwm set to 100% it will be on full but we have 
     Timer1.pwm(PWM_PIN,(PWM_FULL - 1), 1000);             // keep switching so set duty cycle at 99.9% and slow down to 1000uS period 
     //Timer1.pwm(PWM_PIN,(PWM_FULL - 1));              
   }												
@@ -167,7 +176,7 @@ void print_int100_dec2(int temp) {
 
   Serial.print(temp/100,DEC);        // divide by 100 and print interger value
   Serial.print(".");
-  if ((temp%100) < 10) {              // if fractional value has only one digit
+  if ((temp%100) < 10) {             // if fractional value has only one digit
     Serial.print("0");               // print a "0" to give it two digits
     Serial.print(temp%100,DEC);      // get remainder and print fractional value
   }
@@ -184,14 +193,14 @@ void print_data(void) {
   Serial.print("  ");
 
   Serial.print("charger = ");
-  if (power_status.mode == off)              Serial.print("off    ");
-  else if (power_status.mode == mppt_on)     Serial.print("mppt   ");
-  else if (power_status.mode == auto_off)    Serial.print("autooff");
-  else if (power_status.mode == bulk)        Serial.print("bulk   ");
-  else if (power_status.mode == bat_float)   Serial.print("float  ");
-  else if (power_status.mode == const_volt)  Serial.print("volt   ");
-  else if (power_status.mode == const_power) Serial.print("watt   ");
-  else if (power_status.mode == const_pwm)   Serial.print("pwm    ");
+  if (power_status.mode == MODE_OFF)                 Serial.print("off    ");
+  else if (power_status.mode == MODE_MPPT_ON)        Serial.print("mppton ");
+  else if (power_status.mode == MODE_MPPT_OFF)       Serial.print("autooff");
+  else if (power_status.mode == MODE_MPPT_BULK)      Serial.print("bulk   ");
+  else if (power_status.mode == MODE_MPPT_BAT_FLOAT) Serial.print("float  ");
+  else if (power_status.mode == MODE_CONST_VOLT)     Serial.print("volt   ");
+  else if (power_status.mode == MODE_CONST_POWER)    Serial.print("watt   ");
+  else if (power_status.mode == MODE_CONST_DUTY)     Serial.print("duty   ");
   Serial.print("  ");
 
   Serial.print("target = ");
@@ -225,14 +234,14 @@ void print_data_json(void) {
   Serial.print(seconds, DEC);
 
   Serial.print(", \"state\": ");
-  if (power_status.mode == off)              Serial.print("\"off\",    ");
-  else if (power_status.mode == mppt_on)     Serial.print("\"mppt\",   ");
-  else if (power_status.mode == auto_off)    Serial.print("\"autooff\",");
-  else if (power_status.mode == bulk)        Serial.print("\"bulk\",   ");
-  else if (power_status.mode == bat_float)   Serial.print("\"float\",  ");
-  else if (power_status.mode == const_volt)  Serial.print("\"volt\",   ");
-  else if (power_status.mode == const_power) Serial.print("\"watt\",   ");
-  else if (power_status.mode == const_pwm)   Serial.print("\"pwm\",   ");
+  if (power_status.mode == MODE_OFF)                 Serial.print("\"off\",    ");
+  else if (power_status.mode == MODE_MPPT_ON)        Serial.print("\"mppton\", ");
+  else if (power_status.mode == MODE_MPPT_OFF)       Serial.print("\"autooff\",");
+  else if (power_status.mode == MODE_MPPT_BULK)      Serial.print("\"bulk\",   ");
+  else if (power_status.mode == MODE_MPPT_BAT_FLOAT) Serial.print("\"float\",  ");
+  else if (power_status.mode == MODE_CONST_VOLT)     Serial.print("\"volt\",   ");
+  else if (power_status.mode == MODE_CONST_POWER)    Serial.print("\"watt\",   ");
+  else if (power_status.mode == MODE_CONST_DUTY)     Serial.print("\"duty\",   ");
 
   Serial.print(" \"target\": ");
   print_int100_dec2(power_status.target);
@@ -306,7 +315,7 @@ void MPPT_state_machine(void) {
   
   static int old_sol_watts = 0;
   static int off_count = OFF_NUM;
-  static int delta = PWM_INC;                        // variable used to modify pwm duty cycle for the ppt algorithm
+  static int delta = PWM_INC;                   // variable used to modify pwm duty cycle for the ppt algorithm
 
   int pwm = power_status.pwm_duty;
   int sol_watts = power_status.sol_watts;
@@ -314,50 +323,50 @@ void MPPT_state_machine(void) {
   int sol_volts = power_status.sol_volts;
   
   switch (power_status.mode) {
-    case mppt_on:                                        
-      if (sol_watts < MIN_SOL_WATTS) {              //if watts input from the solar panel is less than
-        power_status.mode = auto_off;               //the minimum solar watts then it is getting dark so
-        off_count = OFF_NUM;                        //go to the charger off state
-        TURN_OFF_MOSFETS; 
-      }
-      else if (bat_volts > MAX_BAT_VOLTS) {        //else if the battery voltage has gotten above the float
-        power_status.mode = bat_float;                 //battery float voltage go to the charger battery float state
-      }
-      else if (sol_watts < LOW_SOL_WATTS) {        //else if the solar input watts is less than low solar watts
-        pwm = PWM_MAX;                             //it means there is not much power being generated by the solar panel
-        set_pwm_duty(pwm);			   //so we just set the pwm = 100% so we can get as much of this power as possible
-      }                                            //and stay in the charger on state
-      else {                                          
-        pwm = ((bat_volts * 10) / (sol_volts / 10)) + 5;  //else if we are making more power than low solar watts figure out what the pwm
-        power_status.mode = bulk;                              //value should be and change the charger to bulk state 
-      }
-      break;
-    case bulk:
+    case MODE_MPPT_ON:                                        
       if (sol_watts < MIN_SOL_WATTS) {          //if watts input from the solar panel is less than
-        power_status.mode = auto_off;                    //the minimum solar watts then it is getting dark so
+        power_status.mode = MODE_MPPT_OFF;      //the minimum solar watts then it is getting dark so
         off_count = OFF_NUM;                    //go to the charger off state
         TURN_OFF_MOSFETS; 
       }
-      else if (bat_volts > MAX_BAT_VOLTS) {     //else if the battery voltage has gotten above the float
-        power_status.mode = bat_float;              //battery float voltage go to the charger battery float state
+      else if (bat_volts > MAX_BAT_VOLTS) {       //else if the battery voltage has gotten above the float
+        power_status.mode = MODE_MPPT_BAT_FLOAT;  //battery float voltage go to the charger battery float state
       }
       else if (sol_watts < LOW_SOL_WATTS) {     //else if the solar input watts is less than low solar watts
-        power_status.mode = mppt_on;                     //it means there is not much power being generated by the solar panel
-        TURN_ON_MOSFETS;                        //so go to charger on state
-      }
-      else {                                    // this is where we do the Peak Power Tracking ro Maximum Power Point algorithm
-        if (old_sol_watts >= sol_watts) {       //   if previous watts are greater change the value of
-          delta = -delta;			// delta to make pwm increase or decrease to maximize watts
-        }
-        pwm += delta;                           // add delta to change PWM duty cycle for PPT algorythm 
-        old_sol_watts = sol_watts;              // load old_watts with current watts value for next time
-        set_pwm_duty(pwm);			// set pwm duty cycle to pwm value
+        pwm = PWM_MAX;                          //it means there is not much power being generated by the solar panel
+        set_pwm_duty(pwm);			                //so we just set the pwm = 100% so we can get as much of this power as possible
+      }                                         //and stay in the charger on state
+      else {                                          
+        pwm = ((bat_volts * 10) / (sol_volts / 10)) + 5;  //else if we are making more power than low solar watts figure out what the pwm
+        power_status.mode = MODE_MPPT_BULK;               //value should be and change the charger to bulk state 
       }
       break;
-    case bat_float:
-      if (sol_watts < MIN_SOL_WATTS) {          //if watts input from the solar panel is less than
-        power_status.mode = auto_off;                    //the minimum solar watts then it is getting dark so
-        off_count = OFF_NUM;                    //go to the charger off state
+    case MODE_MPPT_BULK:
+      if (sol_watts < MIN_SOL_WATTS) {         //if watts input from the solar panel is less than
+        power_status.mode = MODE_MPPT_OFF;     //the minimum solar watts then it is getting dark so
+        off_count = OFF_NUM;                   //go to the charger off state
+        TURN_OFF_MOSFETS; 
+      }
+      else if (bat_volts > MAX_BAT_VOLTS) {      //else if the battery voltage has gotten above the float
+        power_status.mode = MODE_MPPT_BAT_FLOAT; //battery float voltage go to the charger battery float state
+      }
+      else if (sol_watts < LOW_SOL_WATTS) {    //else if the solar input watts is less than low solar watts
+        power_status.mode = MODE_MPPT_ON;      //it means there is not much power being generated by the solar panel
+        TURN_ON_MOSFETS;                       //so go to charger on state
+      }
+      else {                                   // this is where we do the Peak Power Tracking ro Maximum Power Point algorithm
+        if (old_sol_watts >= sol_watts) {      // if previous watts are greater change the value of
+          delta = -delta;			                 // delta to make pwm increase or decrease to maximize watts
+        }
+        pwm += delta;                          // add delta to change PWM duty cycle for PPT algorythm 
+        old_sol_watts = sol_watts;             // load old_watts with current watts value for next time
+        set_pwm_duty(pwm);			               // set pwm duty cycle to pwm value
+      }
+      break;
+    case MODE_MPPT_BAT_FLOAT:
+      if (sol_watts < MIN_SOL_WATTS) {         //if watts input from the solar panel is less than
+        power_status.mode = MODE_MPPT_OFF;     //the minimum solar watts then it is getting dark so
+        off_count = OFF_NUM;                   //go to the charger off state
         set_pwm_duty(pwm);					
         TURN_OFF_MOSFETS; 
       }
@@ -369,28 +378,28 @@ void MPPT_state_machine(void) {
         pwm += 1;                              //increment the pwm to get it back up to the float voltage
         set_pwm_duty(pwm);					
         if (pwm >= 100) {                      //if pwm gets up to 100 it means we can't keep the battery at
-          power_status.mode = bulk;                //float voltage so jump to charger bulk state to charge the battery
+          power_status.mode = MODE_MPPT_BULK;  //float voltage so jump to charger bulk state to charge the battery
         }
       }
       break;
-    case auto_off:                                  //when we jump into the charger off state, off_count is set with OFF_NUM
-      if (off_count > 0) {                     //this means that we run through the off state OFF_NUM of times with out doing
-        off_count--;                           //anything, this is to allow the battery voltage to settle down to see if the  
-      }                                        //battery has been disconnected
+    case MODE_MPPT_OFF:                           //when we jump into the charger off state, off_count is set with OFF_NUM
+      if (off_count > 0) {                        //this means that we run through the off state OFF_NUM of times with out doing
+        off_count--;                              //anything, this is to allow the battery voltage to settle down to see if the  
+      }                                           //battery has been disconnected
       else if ((bat_volts > HIGH_BAT_VOLTS) && (bat_volts < MAX_BAT_VOLTS) && (sol_volts > bat_volts)) {
-        power_status.mode = bat_float;             //if battery voltage is still high and solar volts are high
-        set_pwm_duty(pwm);		       //change charger state to battery float			
+        power_status.mode = MODE_MPPT_BAT_FLOAT;  //if battery voltage is still high and solar volts are high
+        set_pwm_duty(pwm);		                    //change charger state to battery float			
         TURN_ON_MOSFETS; 
       }
       else if ((bat_volts > MIN_BAT_VOLTS) && (bat_volts < MAX_BAT_VOLTS) && (sol_volts > bat_volts)) {
         pwm = PWM_START;                        // if battery volts aren't quite so high but we have solar volts
         set_pwm_duty(pwm);			                // greater than battery volts showing it is day light then	
-        power_status.mode = mppt_on;            // change charger state to on so we start charging
+        power_status.mode = MODE_MPPT_ON;       // change charger state to on so we start charging
         TURN_ON_MOSFETS; 
       }
       break;
     default:
-      TURN_OFF_MOSFETS;                        //else stay in the off state
+      TURN_OFF_MOSFETS;                         //else stay in the off state
       break;
   }
 }
@@ -421,31 +430,31 @@ void adjust_pwm(int target_difference) {
 void state_switch(charger_mode_t mode, int target = 0) {
 
   switch (mode) {
-    case off:
+    case MODE_OFF:
       TURN_OFF_MOSFETS;
       power_status.mode = mode;
       break;
       
-    case const_volt:
+    case MODE_CONST_VOLT:
       TURN_ON_MOSFETS;
       power_status.mode = mode;
       power_status.target = target;
       break;
       
-    case const_power:
+    case MODE_CONST_POWER:
       TURN_ON_MOSFETS;
       power_status.mode = mode;
       power_status.target = target;
       break;
 
-    case const_pwm:
-      TURN_ON_MOSFETS;
+    case MODE_CONST_DUTY:
       power_status.mode = mode;
       power_status.target = target;
       set_pwm_duty((long)target * (PWM_FULL - 1) / 10000);
+      TURN_ON_MOSFETS;
       break;
 
-    case mppt_on:
+    case MODE_MPPT_ON:
       TURN_ON_MOSFETS;
       power_status.mode = mode;
       break;
@@ -458,18 +467,17 @@ void state_switch(charger_mode_t mode, int target = 0) {
 // State machine for different modes
 void state_machine(void) {
   switch (power_status.mode) {
-    case const_volt:
+    case MODE_CONST_VOLT:
       adjust_pwm(power_status.target - power_status.bat_volts);
       break;
-    case const_power:
+    case MODE_CONST_POWER:
       adjust_pwm(power_status.target - power_status.sol_watts);
       break;
-    case const_pwm:
-      break; // nothing to be done in constant pwm mode, as it is already set
-    case off:
+    case MODE_CONST_DUTY:
+      break; // nothing to be done in constant duty pwm mode, as duty cycle is already set in "state_switch"
+    case MODE_OFF:
       break; // do nothing if it is in off mode
-    // other cases: call mppt state-machine
-    default:
+    default: // other cases: call mppt state-machine
       MPPT_state_machine();
       break;
   }
@@ -489,19 +497,19 @@ void get_serial_command() {
   #define stricmp strcasecmp // strangely, arduino uses a different API
 
   if(!stricmp(cmd,"P")) {
-    state_switch(const_power,val);
+    state_switch(MODE_CONST_POWER, val);
   }
   else if(!stricmp(cmd,"V")) {
-    state_switch(const_volt,val);
+    state_switch(MODE_CONST_VOLT, val);
   }
   else if(!stricmp(cmd,"PWM")) {
-    state_switch(const_pwm,val);
+    state_switch(MODE_CONST_DUTY, val);
   }
   else if(!stricmp(cmd,"MPPT") && val) {
-    state_switch(mppt_on); 
+    state_switch(MODE_MPPT_ON); 
   }
   else if(!stricmp(cmd,"OFF") && val) {
-    state_switch(off);
+    state_switch(MODE_OFF);
   }
   else {
     Serial.print("{\"time\": ");
@@ -528,8 +536,8 @@ void setup()                               // run once, when the sketch starts
   lpf_out_volts.Init();
   lpf_in_amps.Init();
 
-  //state_switch(off);                       // start with charger state as off
-  state_switch(const_volt, 300);                       // start with charger state as off
+  state_switch(MODE_OFF);                     // start with charger state as off
+  //state_switch(MODE_CONST_VOLT, 300);                       // start with charger state as off
 }
 
 //------------------------------------------------------------------------------------------------------
@@ -558,8 +566,8 @@ void loop()                          // run over and over again
       current_target = 400;
     }
 
-    state_switch(const_power, current_target);
-    //state_switch(const_volt, current_target);
+    state_switch(MODE_CONST_POWER, current_target);
+    //state_switch(MODE_CONST_VOLT, current_target);
   }*/
 
   if (Serial.available() >= 4) {
