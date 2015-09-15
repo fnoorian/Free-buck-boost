@@ -55,7 +55,7 @@
 
 //------------------------------------------------------------------------------------------------------
 // global variables
-enum charger_mode_t {off, mppt_on, auto_off, bulk, bat_float, const_volt, const_power};
+enum charger_mode_t {off, mppt_on, auto_off, bulk, bat_float, const_volt, const_power, const_pwm};
 
 struct system_states_t {
    int sol_amps;                         // solar amps in 10 mV (scaled by 100)
@@ -191,6 +191,7 @@ void print_data(void) {
   else if (power_status.mode == bat_float)   Serial.print("float  ");
   else if (power_status.mode == const_volt)  Serial.print("volt   ");
   else if (power_status.mode == const_power) Serial.print("watt   ");
+  else if (power_status.mode == const_pwm)   Serial.print("pwm    ");
   Serial.print("  ");
 
   Serial.print("target = ");
@@ -224,13 +225,14 @@ void print_data_json(void) {
   Serial.print(seconds, DEC);
 
   Serial.print(", \"state\": ");
-  if (power_status.mode == off)              Serial.print("\"off\",  ");
+  if (power_status.mode == off)              Serial.print("\"off\",    ");
   else if (power_status.mode == mppt_on)     Serial.print("\"mppt\",   ");
   else if (power_status.mode == auto_off)    Serial.print("\"autooff\",");
-  else if (power_status.mode == bulk)        Serial.print("\"bulk\", ");
-  else if (power_status.mode == bat_float)   Serial.print("\"float\",");
-  else if (power_status.mode == const_volt)  Serial.print("\"volt\", ");
-  else if (power_status.mode == const_power) Serial.print("\"watt\", ");
+  else if (power_status.mode == bulk)        Serial.print("\"bulk\",   ");
+  else if (power_status.mode == bat_float)   Serial.print("\"float\",  ");
+  else if (power_status.mode == const_volt)  Serial.print("\"volt\",   ");
+  else if (power_status.mode == const_power) Serial.print("\"watt\",   ");
+  else if (power_status.mode == const_pwm)   Serial.print("\"pwm\",   ");
 
   Serial.print(" \"target\": ");
   print_int100_dec2(power_status.target);
@@ -436,6 +438,13 @@ void state_switch(charger_mode_t mode, int target = 0) {
       power_status.target = target;
       break;
 
+    case const_pwm:
+      TURN_ON_MOSFETS;
+      power_status.mode = mode;
+      power_status.target = target;
+      set_pwm_duty((long)target * (PWM_FULL - 1) / 10000);
+      break;
+
     case mppt_on:
       TURN_ON_MOSFETS;
       power_status.mode = mode;
@@ -455,6 +464,8 @@ void state_machine(void) {
     case const_power:
       adjust_pwm(power_status.target - power_status.sol_watts);
       break;
+    case const_pwm:
+      break; // nothing to be done in constant pwm mode, as it is already set
     case off:
       break; // do nothing if it is in off mode
     // other cases: call mppt state-machine
@@ -482,6 +493,9 @@ void get_serial_command() {
   }
   else if(!stricmp(cmd,"V")) {
     state_switch(const_volt,val);
+  }
+  else if(!stricmp(cmd,"PWM")) {
+    state_switch(const_pwm,val);
   }
   else if(!stricmp(cmd,"MPPT") && val) {
     state_switch(mppt_on); 
