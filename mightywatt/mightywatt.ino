@@ -255,6 +255,7 @@ void controlLoop()
 
 void serialMonitor()
 {
+  // TODO: cleanup this code, by directly calling setLoad and sendMessage
   if (Serial.available() > 0)  
   {
 
@@ -302,7 +303,7 @@ void serialMonitor()
       {        
         // set command (write to Arduino)
         setLoad(commandByte & 0b00011111, val);
-        sendMessage(0);
+        // sendMessage(0); // This line is disabled to avoid sending instant replies
       }
       else
       {

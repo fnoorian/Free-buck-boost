@@ -27,9 +27,11 @@ class FCCSerialDriver():
 
     def readline_json(self):
         line = self.serial.readline()
+        print("Read: ", line)
         return json.loads(line.decode())
 
     def write_command(self, cmd):
+        #print("Writing: ", cmd)
         self.serial.write(cmd.encode())
 
     def close(self):
