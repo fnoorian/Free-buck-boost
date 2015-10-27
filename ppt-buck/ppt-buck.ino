@@ -616,7 +616,8 @@ void setup()                               // run once, when the sketch starts
   lpf_in_amps.Init();
 
   state_switch(MODE_OFF);                     // start with charger state as off
-  //state_switch(MODE_CONST_VOLT, 300);                       // start with charger state as off
+
+  print_identity();
 }
 
 //------------------------------------------------------------------------------------------------------
@@ -628,8 +629,11 @@ void setup()                               // run once, when the sketch starts
 
 void loop()                          // run over and over again
 {
-  read_data();                         //read data from inputs
+  read_data();                         //read data from sensors
   state_machine();                     //run the state machine
+  if (Serial.available() >= 4) {
+    get_serial_command();              // read commands from serial
+  }
 
   /*
   // update power info
@@ -649,10 +653,7 @@ void loop()                          // run over and over again
     //state_switch(MODE_CONST_VOLT, current_target);
   }*/
 
-  if (Serial.available() >= 4) {
-    get_serial_command();
-  }
-  
+/*  
   // diagnosistic prints
   static int print_counter = 0;
   print_counter++;
@@ -660,5 +661,6 @@ void loop()                          // run over and over again
     print_data_json(); 
     print_counter = 0;
   }
+*/  
 }
 //------------------------------------------------------------------------------------------------------
