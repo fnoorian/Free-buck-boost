@@ -5,10 +5,13 @@ import json
 class FCCSerialDriver():
 
     @staticmethod
+    def find_all_ports():
+        return serial.tools.list_ports.comports()
+    
+    @staticmethod
     def find_port_for_sn(sn):
         """Returns the COM port id of a given serial number"""
-        ports = list(serial.tools.list_ports.comports())
-        for p in ports:
+        for p in serial.tools.list_ports.comports():
             if p[2].endswith(sn):
                 return p[0]
         return None
@@ -24,6 +27,7 @@ class FCCSerialDriver():
 
     def readline_json(self):
         line = self.serial.readline()
+        print(line)
         return json.loads(line.decode())
 
     def write_command(self, cmd):
@@ -36,3 +40,7 @@ class FCCSerialDriver():
                 self.serial = None
                 self.port_num = None
 
+
+if __name__ == '__main__':
+    import pprint
+    pprint.pprint(FCCSerialDriver.find_all_ports())
