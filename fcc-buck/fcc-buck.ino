@@ -57,6 +57,8 @@
 
 //------------------------------------------------------------------------------------------------------
 // global variables
+
+// enumerated variable that holds state for charger state machine
 enum charger_mode_t {MODE_OFF,            // The system is off
                      MODE_MPPT_ON,        // MPPT mode
                      MODE_MPPT_OFF,       // MPPT auto-off mode
@@ -79,9 +81,6 @@ struct system_states_t {
 
 unsigned int seconds = 0;             // seconds from timer routine
   
-// enumerated variable that holds state for charger state machine
-void set_pwm_duty(int pwm);
-
 //------------------------------------------------------------------------------------------------------
 // Circular buffer type for ADC averaging filter
 class LowPassBuffer {
@@ -140,35 +139,6 @@ void timer_callback()
     seconds++;                                   //then increment seconds counter
   }
 }
-//------------------------------------------------------------------------------------------------------
-// This routine uses the Timer1.pwm function to set the pwm duty cycle. The routine takes the value in
-// the variable pwm as 0-100 duty cycle and scales it to get 0-1034 for the Timer1 routine. 
-// There is a special case for 100% duty cycle. Normally this would be have the top MOSFET on all the time
-// but the MOSFET driver IR2104 uses a charge pump to generate the gate voltage so it has to keep running 
-// all the time. So for 100% duty cycle I set the pwm value to 1023 - 1 so it is on 99.9% almost full on 
-// but is switches enough to keep the charge pump on IR2104 working.
-//------------------------------------------------------------------------------------------------------
-
-void set_pwm_duty(int pwm) {
-
-  if (pwm > PWM_MAX) {					   // check limits of PWM duty cyle and set to PWM_MAX
-    pwm = PWM_MAX;		
-  }
-  else if (pwm < PWM_MIN) {				   // if pwm is less than PWM_MIN then set it to PWM_MIN
-    pwm = PWM_MIN;
-  }
-  
-  power_status.pwm_duty = pwm;                             // store this value in the status
-  
-  if (pwm < PWM_MAX) {
-    Timer1.pwm(PWM_PIN,pwm, 20);                           // use Timer1 routine to set pwm duty cycle at 20uS period
-    //Timer1.pwm(PWM_PIN,(PWM_FULL * (long)pwm / 100));
-  }												
-  else if (pwm == PWM_MAX) {				                      // if pwm set to 100% it will be on full but we have 
-    Timer1.pwm(PWM_PIN,(PWM_FULL - 1), 1000);             // keep switching so set duty cycle at 99.9% and slow down to 1000uS period 
-    //Timer1.pwm(PWM_PIN,(PWM_FULL - 1));              
-  }												
-}													
 
 //-----------------------------------------------------------------------------------
 // This function prints int that was scaled by 100 with 2 decimal places
@@ -294,6 +264,36 @@ void read_data(void) {
 //  power_status.bat_volts = BAT_VOLTS_SCALE * read_adc(ADC_BAT_VOLTS_CHAN); // ((read_adc(ADC_BAT_VOLTS_CHAN) * BAT_VOLTS_SCALE) + 5) / 10;   //input of battery volts result scaled by 100
 //  power_status.sol_watts = (int)((((long)power_status.sol_amps * (long)power_status.sol_volts) + 50) / 100);    //calculations of solar watts scaled by 10000 divide by 100 to get scaled by 100                 
 }
+
+//------------------------------------------------------------------------------------------------------
+// This routine uses the Timer1.pwm function to set the pwm duty cycle. The routine takes the value in
+// the variable pwm as 0-100 duty cycle and scales it to get 0-1034 for the Timer1 routine. 
+// There is a special case for 100% duty cycle. Normally this would be have the top MOSFET on all the time
+// but the MOSFET driver IR2104 uses a charge pump to generate the gate voltage so it has to keep running 
+// all the time. So for 100% duty cycle I set the pwm value to 1023 - 1 so it is on 99.9% almost full on 
+// but is switches enough to keep the charge pump on IR2104 working.
+//------------------------------------------------------------------------------------------------------
+
+void set_pwm_duty(int pwm) {
+
+  if (pwm > PWM_MAX) {					   // check limits of PWM duty cyle and set to PWM_MAX
+    pwm = PWM_MAX;		
+  }
+  else if (pwm < PWM_MIN) {				   // if pwm is less than PWM_MIN then set it to PWM_MIN
+    pwm = PWM_MIN;
+  }
+  
+  power_status.pwm_duty = pwm;                             // store this value in the status
+  
+  if (pwm < PWM_MAX) {
+    Timer1.pwm(PWM_PIN,pwm, 20);                           // use Timer1 routine to set pwm duty cycle at 20uS period
+    //Timer1.pwm(PWM_PIN,(PWM_FULL * (long)pwm / 100));
+  }												
+  else if (pwm == PWM_MAX) {				                      // if pwm set to 100% it will be on full but we have 
+    Timer1.pwm(PWM_PIN,(PWM_FULL - 1), 1000);             // keep switching so set duty cycle at 99.9% and slow down to 1000uS period 
+    //Timer1.pwm(PWM_PIN,(PWM_FULL - 1));              
+  }												
+}		
 
 //------------------------------------------------------------------------------------------------------
 // This routine is the charger state machine. It has four states on, off, bulk and float.

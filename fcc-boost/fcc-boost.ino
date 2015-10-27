@@ -46,40 +46,35 @@
   
 #define PIN_LED             13            // LED connected to digital pin 13
 
+#define BUFF_MAX            32
 //------------------------------------------------------------------------------------------------------
 // global variables
+
+// enumerated variable that holds state for charger state machine
+enum charger_mode_t {MODE_OFF,            // The system is off
+                     MODE_CONST_VOLT,     // Constant voltage mode
+                     MODE_CONST_POWER,    // Constant power mode
+                     MODE_CONST_DUTY      // Constant duty cycle mode
+                    };
+
 struct system_states_t {
    int sol_amps;                         // solar amps in 10 mV (scaled by 100)
    int sol_volts;                        // solar volts in 10 mV (scaled by 100)
    int bat_volts;                        // battery volts in 10 mV (scaled by 100)
    int sol_watts;                        // solar watts in 10 mV (scaled by 100)
-   uint16_t pwm_duty;
+   uint16_t pwm_duty;                    // pwm target duty cycle, set by set_pwm_duty function
+   int target;                           // voltage or power target
+   charger_mode_t mode;                  // state of the charge state machine
 } power_status;
 
 unsigned int seconds = 0;             // seconds from timer routine
-  
-void set_pwm_duty(int pwm);
 
-//------------------------------------------------------------------------------------------------------
-// This routine is automatically called at powerup/reset
-//------------------------------------------------------------------------------------------------------
-void setup()                            // run once, when the sketch starts
-{
-  Serial.begin(115200);                  // open the serial port at 9600 bps:
-  pinMode(PWM_ENABLE_PIN, OUTPUT);     // sets the digital pin as output
-  Timer1.initialize(20);               // initialize timer1, and set a 20uS period
-  Timer1.pwm(PWM_PIN, 0);              // setup pwm on pin 9, 0% duty cycle
-  TURN_ON_MOSFETS;                     //turn on MOSFET driver chip
-  Timer1.attachInterrupt(callback);    // attaches callback() as a timer overflow interrupt
-  
-  set_pwm_duty(PWM_START);
-}
 //------------------------------------------------------------------------------------------------------
 // This is interrupt service routine for Timer1 that occurs every 20uS.
 // It is only used to incremtent the seconds counter. 
 // Timer1 is also used to generate the pwm output.
 //------------------------------------------------------------------------------------------------------
-void callback()
+void timer_callback()
 {
   static unsigned int interrupt_counter = 0;     // counter for 20us interrrupt
 
@@ -104,21 +99,7 @@ int read_adc(int channel){
   }
   return(sum / AVG_NUM);                // divide sum by AVG_NUM to get average and return it
 }
-//-----------------------------------------------------------------------------------
-// This function prints int that was scaled by 100 with 2 decimal places
-//-----------------------------------------------------------------------------------
-void print_int100_dec2(int temp) {
 
-  Serial.print(temp/100,DEC);        // divide by 100 and print interger value
-  Serial.print(".");
-  if ((temp%100) < 10) {              // if fractional value has only one digit
-    Serial.print("0");               // print a "0" to give it two digits
-    Serial.print(temp%100,DEC);      // get remainder and print fractional value
-  }
-  else {
-    Serial.print(temp%100,DEC);      // get remainder and print fractional value
-  }
-}
 //------------------------------------------------------------------------------------------------------
 // This routine uses the Timer1.pwm function to set the pwm duty cycle. The routine takes the value in
 // the variable pwm as 0-100 duty cycle and scales it to get 0-1034 for the Timer1 routine. 
@@ -147,41 +128,64 @@ void set_pwm_duty(int pwm) {
     Timer1.pwm(PWM_PIN, 4, 1000);             // keep switching so set duty cycle at 99.9% and slow down to 1000uS period 
     //Timer1.pwm(PWM_PIN,(PWM_FULL - 1));              
   }												
-}													
+}				
+									
+//-----------------------------------------------------------------------------------
+// This function prints int that was scaled by 100 with 2 decimal places
+//-----------------------------------------------------------------------------------
+void print_int100_dec2(int temp) {
 
+  Serial.print(temp/100,DEC);        // divide by 100 and print interger value
+  Serial.print(".");
+  if ((temp%100) < 10) {              // if fractional value has only one digit
+    Serial.print("0");               // print a "0" to give it two digits
+    Serial.print(temp%100,DEC);      // get remainder and print fractional value
+  }
+  else {
+    Serial.print(temp%100,DEC);      // get remainder and print fractional value
+  }
+}
 //------------------------------------------------------------------------------------------------------
 // This routine prints all the data out to the serial port.
 //------------------------------------------------------------------------------------------------------
-void print_data(void) {
-  
-  Serial.print(seconds,DEC);
-  Serial.print("  ");
+void print_data_json(void) {
+  Serial.print("{\"time\": ");
+  Serial.print(seconds, DEC);
 
-  Serial.print("pwm = ");
+  Serial.print(", \"state\": ");
+  if (power_status.mode == MODE_OFF)                 Serial.print("\"off\",    ");
+  else if (power_status.mode == MODE_CONST_VOLT)     Serial.print("\"volt\",   ");
+  else if (power_status.mode == MODE_CONST_POWER)    Serial.print("\"watt\",   ");
+  else if (power_status.mode == MODE_CONST_DUTY)     Serial.print("\"duty\",   ");
+
+  Serial.print(" \"target\": ");
+  print_int100_dec2(power_status.target);
+
+  Serial.print(", \"pwm\": ");
   print_int100_dec2((long)power_status.pwm_duty * 10000 / (PWM_FULL - 1));
-  Serial.print("  ");
 
-  Serial.print("s_amps = ");
-  print_int100_dec2(power_status.sol_amps);
-  Serial.print("  ");
-
-  Serial.print("s_volts = ");
-  //Serial.print(sol_volts,DEC);
-  //Serial.print("  ");
+  Serial.print(", \"volts_in\": ");
   print_int100_dec2(power_status.sol_volts);
-  Serial.print("  ");
 
-  Serial.print("s_watts = ");
-  print_int100_dec2(power_status.sol_watts);
-  Serial.print("  ");
-
-  Serial.print("b_volts = ");
-  //Serial.print(bat_volts,DEC);
+  Serial.print(", \"volts_out\": ");
   print_int100_dec2(power_status.bat_volts);
-  Serial.print("  ");
 
-  Serial.print("\n\r");
+  Serial.print(", \"amps_in\": ");
+  print_int100_dec2(power_status.sol_amps);
+
+  Serial.print(", \"watts_in\": ");
+  print_int100_dec2(power_status.sol_watts);
+
+  Serial.println("}");
 }
+//------------------------------------------------------------------------------------------------------
+// Prints device identity as a JSON string
+//------------------------------------------------------------------------------------------------------
+void print_identity() 
+{
+    Serial.println("{\"device\": \"FreeChargeControlBoost\", \"version\":1}");
+}
+
 //------------------------------------------------------------------------------------------------------
 // This routine reads all the analog input values for the system. Then it multiplies them by the scale
 // factor to get actual value in volts or amps. Then it adds on a rounding value before dividing to get
@@ -196,73 +200,155 @@ void read_data(void) {
   power_status.sol_watts = (int)((((long)power_status.sol_amps * (long)power_status.sol_volts) + 50) / 100);    //calculations of solar watts scaled by 10000 divide by 100 to get scaled by 100                 
 }
 //------------------------------------------------------------------------------------------------------
+// Routines to set the device mode and the state machine
+//------------------------------------------------------------------------------------------------------
+
+void adjust_pwm(int target_difference) {
+
+  int current_pwm = power_status.pwm_duty;
+
+  // proportional delta control
+  int pwm_delta = 1 + (abs(target_difference) / 25);
+  
+  // adjust pwm either up or down based on difference sign
+  if (target_difference < 0) {
+    current_pwm -= pwm_delta;
+  } else if (target_difference > 0) {
+    current_pwm += pwm_delta;
+  }
+  
+  set_pwm_duty(current_pwm);
+}
+
+void state_switch(charger_mode_t mode, int target = 0) {
+
+  switch (mode) {
+    case MODE_OFF:
+      TURN_OFF_MOSFETS;
+      power_status.mode = mode;
+      break;
+      
+    case MODE_CONST_VOLT:
+      TURN_ON_MOSFETS;
+      power_status.mode = mode;
+      power_status.target = target;
+      break;
+      
+    case MODE_CONST_POWER:
+      TURN_ON_MOSFETS;
+      power_status.mode = mode;
+      power_status.target = target;
+      break;
+
+    case MODE_CONST_DUTY:
+      power_status.mode = mode;
+      power_status.target = target;
+      set_pwm_duty((long)target * (PWM_FULL - 1) / 10000);
+      TURN_ON_MOSFETS;
+      break;
+
+    default:
+      break;
+  }
+}
+
+// State machine for different modes
+void state_machine(void) {
+  switch (power_status.mode) {
+    case MODE_CONST_VOLT:
+      adjust_pwm(power_status.target - power_status.bat_volts);
+      break;
+    case MODE_CONST_POWER:
+      adjust_pwm(power_status.target - power_status.sol_watts);
+      break;
+    case MODE_CONST_DUTY:
+      break; // nothing to be done in constant duty pwm mode, as duty cycle is already set in "state_switch"
+    case MODE_OFF:
+    default: // other cases
+      break; // do nothing if it is in off mode
+      break;
+  }
+}
+
+//------------------------------------------------------------------------------------------------------
+// Reading JSON commands from the serial port
+//------------------------------------------------------------------------------------------------------
+
+void get_serial_command() {
+  /* Variables used for parsing and tokenising */
+  char cmd[BUFF_MAX]; // char string to store the command
+  int val;  // Integer to store value
+
+  // read until reaching '{'
+  while (Serial.read() != '{');
+
+  char in_buff[BUFF_MAX]; // Buffer in input
+  int end = Serial.readBytesUntil('}', in_buff, BUFF_MAX); // Read command from serial monitor
+  in_buff[end] = 0; // null terminate the string
+
+  sscanf(in_buff, "%[^= ] = %d}", cmd, &val); // parse the string
+
+  #define stricmp strcasecmp // strangely, arduino uses a different API
+
+  if(!stricmp(cmd,"P")) {
+    state_switch(MODE_CONST_POWER, val);
+  }
+  else if(!stricmp(cmd,"V")) {
+    state_switch(MODE_CONST_VOLT, val);
+  }
+  else if(!stricmp(cmd,"PWM")) {
+    state_switch(MODE_CONST_DUTY, val);
+  }
+  else if(!stricmp(cmd,"OFF") && val) {
+    state_switch(MODE_OFF);
+  }
+  else if(!stricmp(cmd,"STATUS") && val) {
+    print_data_json();
+  }
+  else if(!stricmp(cmd,"IDN") && val) {
+    print_identity();
+  }
+  else {
+    Serial.print("{\"time\": ");
+    Serial.print(seconds, DEC);
+    Serial.println(", \"state\": \"read_err\"}");
+  }
+}
+
+//------------------------------------------------------------------------------------------------------
+// Setup function
+// This routine is automatically called at powerup/reset
+//------------------------------------------------------------------------------------------------------
+
+void setup()                            // run once, when the sketch starts
+{
+  Serial.begin(115200);                   // open the serial port at 9600 bps:
+  pinMode(PWM_ENABLE_PIN, OUTPUT);        // sets the digital pin as output
+  TURN_OFF_MOSFETS;                       //turn off MOSFET driver chip
+
+  Timer1.initialize(20);                  // initialize timer1, and set a 20uS period
+  Timer1.pwm(PWM_PIN, 0);                 // setup pwm on pin 9, 0% duty cycle
+  Timer1.attachInterrupt(timer_callback); // attaches callback() as a timer overflow interrupt
+  
+  state_switch(MODE_OFF);
+
+  print_identity();
+}
+
+//------------------------------------------------------------------------------------------------------
 // Main loop.
 // Right now the number of times per second that this main loop runs is set by how long the printing to 
 // the serial port takes. You can speed that up by speeding up the baud rate.
 // You can also run the commented out code and the charger routines will run once a second.
 //------------------------------------------------------------------------------------------------------
 
-void constant_power_control(int target_watts) {
-  static int old_sol_watts = 0;
-  
-  int current_watts = power_status.sol_watts;
-  int current_pwm = power_status.pwm_duty;
-  
-  if (target_watts < current_watts) {
-    current_pwm -= PWM_INC;
-  } else if (target_watts > current_watts) {
-    current_pwm += PWM_INC;
-  }
-  
-  set_pwm_duty(current_pwm);
-}
-
-void constant_voltage_control(int target_voltage) {
-  static int old_bat_volt = 0;
-  
-  int current_voltage = power_status.bat_volts;
-  int current_pwm = power_status.pwm_duty;
-  
-  if (target_voltage < current_voltage) {
-    current_pwm -= PWM_INC;
-  } else if (target_voltage > current_voltage) {
-    current_pwm += PWM_INC;
-  }
-  
-  set_pwm_duty(current_pwm);
-}
-
 void loop()                          // run over and over again
 {
-  read_data();                         //read data from inputs
-//  MPPT_state_machine();                      //run the charger state machine
-  
-  static int current_power = 0;
-  static unsigned int prev_seconds = 0;        // seconds value from previous pass
-  if ((seconds - prev_seconds) > 4) {  
-    prev_seconds = seconds;		// do this stuff once a second
-
-    if (current_power >= 1600) {
-      current_power = 1200;
-    }
-    else {
-      current_power += 100;
-    }
+  read_data();                         //read data from sensors
+  state_machine();                     //run the state machine
+  if (Serial.available() >= 4) {
+    get_serial_command();              // read commands from serial
   }
-
-  //constant_voltage_control(current_power);
-  constant_voltage_control(current_power);
-
-  static unsigned int print_counter = 0;
-  print_counter++;
-  if (print_counter > 100) {
-    print_data();                       //print data
-    print_counter = 0;
-  }
-  
-//    read_data();                         //read data from inputs
-//    MPPT_state_machine();
-//    print_data();                       //print data
-//  }
 }
+
 //------------------------------------------------------------------------------------------------------
