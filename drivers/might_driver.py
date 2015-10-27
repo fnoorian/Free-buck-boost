@@ -2,7 +2,8 @@ from fcc_base_driver import FCCSerialDriver
 
 class MightyWattDriver(FCCSerialDriver):
 
-    SN_MightyWatt = 'SNR=95238343234351A00181'#'SNR=8533434373835120D1C2'
+    #SN_MightyWatt = 'SNR=95238343234351A00181'
+    SN_MightyWatt = 'SNR=8533434373835120D1C2'
     
     def open(self):
         self.open_serial(self.SN_MightyWatt)

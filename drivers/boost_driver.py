@@ -2,7 +2,8 @@ from fcc_base_driver import FCCSerialDriver
 
 class FCCBoostDriver(FCCSerialDriver):
 
-    SN_FCC_Boost = 'SNR=95238343234351A00181'#'SNR=75439333635351719221'
+    #SN_FCC_Boost = 'SNR=95238343234351A00181'
+    SN_FCC_Boost = 'SNR=75439333635351719221'
     
     def open(self):
         self.open_serial(self.SN_FCC_Buck)

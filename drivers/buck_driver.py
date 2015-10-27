@@ -2,7 +2,8 @@ from fcc_base_driver import FCCSerialDriver
 
 class FCCBuckDriver(FCCSerialDriver):
 
-    SN_FCC_Buck = 'SNR=95238343234351A00181'#'SNR=75439333635351712071'
+    #SN_FCC_Buck = 'SNR=95238343234351A00181'
+    SN_FCC_Buck = 'SNR=75439333635351712071'
     
     def open(self):
         self.open_serial(self.SN_FCC_Buck)
@@ -40,7 +41,8 @@ class FCCBuckDriver(FCCSerialDriver):
 
 class FCCMPPTDriver(FCCBuckDriver):
 
-    SN_FCC_MPPT = 'SNR=95238343234351A00181'#'SNR=75439333635351918140'
+    #SN_FCC_MPPT = 'SNR=95238343234351A00181'
+    SN_FCC_MPPT = 'SNR=75439333635351918140'    
 
     def open(self):
         self.open_serial(self.SN_FCC_MPPT)
