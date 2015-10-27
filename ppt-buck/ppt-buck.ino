@@ -522,6 +522,9 @@ void get_serial_command() {
   else if(!stricmp(cmd,"OFF") && val) {
     state_switch(MODE_OFF);
   }
+  else if(!stricmp(cmd,"STATUS") && val) {
+    print_data_json();
+  }
   else if(!stricmp(cmd,"IDN") && val) {
     print_identity();
   }
