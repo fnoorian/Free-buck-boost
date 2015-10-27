@@ -496,11 +496,14 @@ void get_serial_command() {
   char cmd[BUFF_MAX]; // char string to store the command
   int val;  // Integer to store value
 
+  // read until reaching '{'
+  while (Serial.read() != '{');
+
   char in_buff[BUFF_MAX]; // Buffer in input
   int end = Serial.readBytesUntil('}', in_buff, BUFF_MAX); // Read command from serial monitor
   in_buff[end] = 0; // null terminate the string
 
-  sscanf(in_buff, "{%[^= ] = %d}", cmd, &val); // parse the string
+  sscanf(in_buff, "%[^= ] = %d}", cmd, &val); // parse the string
 
   #define stricmp strcasecmp // strangely, arduino uses a different API
 
