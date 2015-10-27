@@ -264,6 +264,14 @@ void print_data_json(void) {
   Serial.println("}");
 }
 //------------------------------------------------------------------------------------------------------
+// Prints device identity as a JSON string
+//------------------------------------------------------------------------------------------------------
+void print_identity() 
+{
+    Serial.println("{\"device\": \"FreeChargeControlBuck\", \"version\":1}");
+}
+
+//------------------------------------------------------------------------------------------------------
 // This routine reads all the analog input values for the system. Then it multiplies them by the scale
 // factor to get actual value in volts or amps. Then it adds on a rounding value before dividing to get
 // the result scaled by 100 to give a fractional value of two decimal places. It also calculates the input
@@ -510,6 +518,9 @@ void get_serial_command() {
   }
   else if(!stricmp(cmd,"OFF") && val) {
     state_switch(MODE_OFF);
+  }
+  else if(!stricmp(cmd,"IDN") && val) {
+    print_identity();
   }
   else {
     Serial.print("{\"time\": ");

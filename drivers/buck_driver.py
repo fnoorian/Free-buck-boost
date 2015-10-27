@@ -7,6 +7,12 @@ class FCCBuckDriver(FCCSerialDriver):
     def open(self):
         self.open_serial(self.SN_FCC_Buck)
 
+    def get_identity(self):
+        cmd = "{IDN=1}\n"
+        self.write_command(cmd)
+
+        return self.readline_json()
+
     def set_power(self, p):
         cmd = "{{P={0}}}\n".format(round(p * 100))
         self.write_command(cmd)
@@ -40,6 +46,8 @@ if __name__ == '__main__':
     drv = FCCMPPTDriver()
     drv.open()
     print(drv.dev_id)
+
+    print(drv.get_identity())
 
     drv.set_mppt()
     while (True):
