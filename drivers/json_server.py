@@ -31,10 +31,10 @@ if __name__ == '__main__':
     discharger = FCCBuckDriver()
     mppt = FCCMPPTDriver()
 
-    mightywatt.open()
-    charger.open()
-    discharger.open()
-    mppt.open()
+    mightywatt.open_serial('SNR=8533434373835120D1C2')
+    charger.open_serial('SNR=75439333635351719221')
+    discharger.open_serial('SNR=75439333635351712071')
+    mppt.open_serial('SNR=75439333635351918140')
     
     #run_simple('localhost', 4000, application)
     run_simple('0.0.0.0', 4002, application)

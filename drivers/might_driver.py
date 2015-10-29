@@ -2,13 +2,6 @@ from fcc_base_driver import FCCSerialDriver
 
 class MightyWattDriver(FCCSerialDriver):
 
-    #SN_MightyWatt = 'SNR=95238343234351A00181'
-    SN_MightyWatt = 'SNR=8533434373835120D1C2'
-    
-    def open(self):
-        self.open_serial(self.SN_MightyWatt)
-        print("Device Opened");
-
     def get_identity(self):
         cmd = "{IDN}\n"
         self.write_command(cmd)
@@ -18,7 +11,6 @@ class MightyWattDriver(FCCSerialDriver):
     def set_power(self, p):
         cmd = "{{P={0}}}\n".format(round(p * 1000))
         self.write_command(cmd)
-
 
     def set_current(self, i):
         cmd = "{{I={0}}}\n".format(round(i * 1000))
@@ -42,9 +34,9 @@ class MightyWattDriver(FCCSerialDriver):
 
         return self.readline_json()
 
-if __name__ == '__main__':
+def MightyWattDriver_Test():
     drv = MightyWattDriver()
-    drv.open()
+    drv.open_serial('SNR=95238343234351A00181')
     print(drv.dev_id)
 
     print(drv.get_identity())

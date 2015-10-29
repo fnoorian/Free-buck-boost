@@ -1,13 +1,7 @@
 from fcc_base_driver import FCCSerialDriver
 
 class FCCBoostDriver(FCCSerialDriver):
-
-    #SN_FCC_Boost = 'SNR=95238343234351A00181'
-    SN_FCC_Boost = 'SNR=75439333635351719221'
     
-    def open(self):
-        self.open_serial(self.SN_FCC_Buck)
-
     def get_identity(self):
         cmd = "{IDN=1}\n"
         self.write_command(cmd)
@@ -37,9 +31,9 @@ class FCCBoostDriver(FCCSerialDriver):
 
         return self.readline_json()
 
-if __name__ == '__main__':
+def FCCBoostDriver_test():
     drv = FCCBoostDriver()
-    drv.open()
+    drv.open_serial('SNR=95238343234351A00181')
     print(drv.dev_id)
 
     print(drv.get_identity())

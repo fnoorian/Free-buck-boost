@@ -17,17 +17,24 @@ class FCCSerialDriver():
         return None
 
     def __init__(self):
-        self.port_num = None
-        self.serial = None
+        self.serial = None # the serial object
+        self.dev_id = None # the device ID string
+
+    def open_port(self, portname, baud = 115200):
+        """Open device based on port name"""
+
+        self.serial = serial.Serial(port_num, baud)
+        self.dev_id =  self.readline_json()
 
     def open_serial(self, sn, baud = 115200):
-        self.port_num = self.find_port_for_sn(sn)
-        self.serial = serial.Serial(self.port_num, baud)
-        self.dev_id =  self.readline_json()
+        """Open device based on serial number"""
+
+        port_num = self.find_port_for_sn(sn)
+        self.open_port(port_num, baud)
 
     def readline_json(self):
         line = self.serial.readline()
-        print("Read: ", line)
+        #print("Read: ", line)
         return json.loads(line.decode())
 
     def write_command(self, cmd):
@@ -39,7 +46,6 @@ class FCCSerialDriver():
             if self.serial.isOpen():
                 self.serial.close()
                 self.serial = None
-                self.port_num = None
 
 
 if __name__ == '__main__':
