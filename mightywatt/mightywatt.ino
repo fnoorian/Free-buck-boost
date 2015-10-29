@@ -661,29 +661,27 @@ void sendMessage(byte command) // procedure called when there is a send (read fr
 
       Serial.print(", \"loadStatus\": [");
 
-      if (loadStatus & READY) {
+      if (loadStatus == READY) {
         Serial.print("\"READY\"");
-        if (loadStatus & ~READY) Serial.print(",");
+      } else {
+          if (loadStatus & CURRENT_OVERLOAD) {
+            Serial.print("\"CURRENT_OVERLOAD\"");
+            if (loadStatus & ~CURRENT_OVERLOAD) Serial.print(",");
+          }
+          if (loadStatus & VOLTAGE_OVERLOAD) {
+            Serial.print("\"VOLTAGE_OVERLOAD\"");
+            if (loadStatus & ~(CURRENT_OVERLOAD | VOLTAGE_OVERLOAD)) Serial.print(",");
+          }
+          if (loadStatus & POWER_OVERLOAD) {
+            Serial.print("\"POWER_OVERLOAD\"");
+            if (loadStatus & ~(CURRENT_OVERLOAD | VOLTAGE_OVERLOAD | POWER_OVERLOAD)) Serial.print(",");
+          }
+          if (loadStatus & OVERHEAT) {
+            Serial.print("\"OVERHEAT\"");
+          }
       }
-      if (loadStatus & CURRENT_OVERLOAD) {
-        Serial.print("\"CURRENT_OVERLOAD\"");
-        if (loadStatus & ~(READY | CURRENT_OVERLOAD)) Serial.print(",");
-      }
-      if (loadStatus & VOLTAGE_OVERLOAD) {
-        Serial.print("\"VOLTAGE_OVERLOAD\"");
-        if (loadStatus & ~(READY | CURRENT_OVERLOAD | VOLTAGE_OVERLOAD)) Serial.print(",");
-      }
-      if (loadStatus & POWER_OVERLOAD) {
-        Serial.print("\"POWER_OVERLOAD\"");
-        if (loadStatus & ~(READY | CURRENT_OVERLOAD | VOLTAGE_OVERLOAD | POWER_OVERLOAD)) Serial.print(",");
-      }
-      if (loadStatus & OVERHEAT) {
-        Serial.print("\"OVERHEAT\"");
-      }
-      Serial.print("]");
+      Serial.println("]}");
 
-      Serial.println("}");
-      
       loadStatus = READY;
       break;
     }
