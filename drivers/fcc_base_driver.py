@@ -16,9 +16,15 @@ class FCCSerialDriver():
                 return p[0]
         return None
 
-    def __init__(self):
-        self.serial = None # the serial object
-        self.dev_id = None # the device ID string
+    def __init__(self, sn = None, portname = None):
+
+        if sn is not None: # user serial number to open port
+            self.open_serial(sn)
+        elif portname is not None: # user portname to open device
+            self.open_port(portname)
+        else:
+            self.serial = None # the serial object
+            self.dev_id = None # the device ID string
 
     def open_port(self, portname, baud = 115200):
         """Open device based on port name"""
