@@ -24,6 +24,11 @@ class FCCBuckDriver(FCCSerialDriver):
         cmd = "{{V={0}}}\n".format(round(v * 100))
         self.write_command(cmd)
 
+    def set_volt(self, i):
+        """Set current in amps"""
+        cmd = "{{I={0}}}\n".format(round(i * 100))
+        self.write_command(cmd)
+
     def set_duty_cycle(self, d):
         """Set duty cycle in percents"""
         cmd = "{{PWM={0}}}\n".format(round(d * 100))

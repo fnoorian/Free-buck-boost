@@ -65,6 +65,7 @@ enum charger_mode_t {MODE_OFF,            // The system is off
                      MODE_MPPT_BULK,      // MPPT bulck charger
                      MODE_MPPT_BAT_FLOAT, // MPPT batt float mode
                      MODE_CONST_VOLT,     // Constant voltage mode
+                     MODE_CONST_CURRENT,  // Constant current mode
                      MODE_CONST_POWER,    // Constant power mode
                      MODE_CONST_DUTY      // Constant duty cycle mode
                     };
@@ -170,6 +171,7 @@ void print_data(void) {
   else if (power_status.mode == MODE_MPPT_BULK)      Serial.print("bulk   ");
   else if (power_status.mode == MODE_MPPT_BAT_FLOAT) Serial.print("float  ");
   else if (power_status.mode == MODE_CONST_VOLT)     Serial.print("volt   ");
+  else if (power_status.mode == MODE_CONST_CURRENT)  Serial.print("amps   ");
   else if (power_status.mode == MODE_CONST_POWER)    Serial.print("watt   ");
   else if (power_status.mode == MODE_CONST_DUTY)     Serial.print("duty   ");
   Serial.print("  ");
@@ -211,6 +213,7 @@ void print_data_json(void) {
   else if (power_status.mode == MODE_MPPT_BULK)      Serial.print("\"bulk\",   ");
   else if (power_status.mode == MODE_MPPT_BAT_FLOAT) Serial.print("\"float\",  ");
   else if (power_status.mode == MODE_CONST_VOLT)     Serial.print("\"volt\",   ");
+  else if (power_status.mode == MODE_CONST_CURRENT)  Serial.print("\"amps\",   ");
   else if (power_status.mode == MODE_CONST_POWER)    Serial.print("\"watt\",   ");
   else if (power_status.mode == MODE_CONST_DUTY)     Serial.print("\"duty\",   ");
 
@@ -506,11 +509,7 @@ void state_switch(charger_mode_t mode, int target = 0) {
       break;
       
     case MODE_CONST_VOLT:
-      TURN_ON_MOSFETS;
-      power_status.mode = mode;
-      power_status.target = target;
-      break;
-      
+    case MODE_CONST_CURRENT:
     case MODE_CONST_POWER:
       TURN_ON_MOSFETS;
       power_status.mode = mode;
@@ -539,6 +538,9 @@ void state_machine(void) {
   switch (power_status.mode) {
     case MODE_CONST_VOLT:
       adjust_pwm(power_status.target - power_status.bat_volts);
+      break;
+    case MODE_CONST_CURRENT:
+      adjust_pwm(power_status.target - power_status.sol_amps);
       break;
     case MODE_CONST_POWER:
       adjust_pwm(power_status.target - power_status.sol_watts);
@@ -574,6 +576,9 @@ void get_serial_command() {
   }
   else if(!stricmp(cmd,"V")) {
     state_switch(MODE_CONST_VOLT, val);
+  }
+  else if(!stricmp(cmd,"I")) {
+    state_switch(MODE_CONST_CURRENT, val);
   }
   else if(!stricmp(cmd,"PWM")) {
     state_switch(MODE_CONST_DUTY, val);

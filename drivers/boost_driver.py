@@ -22,6 +22,11 @@ class FCCBoostDriver(FCCSerialDriver):
         cmd = "{{V={0}}}\n".format(round(v * 100))
         self.write_command(cmd)
 
+    def set_volt(self, i):
+        """Set current in amps"""
+        cmd = "{{I={0}}}\n".format(round(i * 100))
+        self.write_command(cmd)
+
     def set_off(self):
         cmd = "{OFF=1}\n"
         self.write_command(cmd)
