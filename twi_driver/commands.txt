@@ -1,0 +1,20 @@
+GetIdentity=0
+GetStatus=1
+SetOff=2
+SetPower=3, followed by 4 bytes, Little Endian, value in miliWatts
+SetVolet=4, followed by 4 bytes, Little Endian, value in miliV
+SetCurrent=5, followed by 4 bytes, Little Endian, value in miliA
+SetMPPT=6
+SetDutyCycle=7, followed by 2 byte, pwm ducty cycle in a hundredth of percent 8 bits
+SetResistance=8, followed by 4 bytes, value in milli Ohms (or is it?)
+
+
+GetIdentity should return
+[Length of message = 1 byte][Identity string, whatever byte]
+
+For buck/boost:
+[Time in seconds 4 bytes][Mode 1 byte][target value, 4 bytes]
+[pwm 2 bytes][amps 4 bytes][volts in 4 bytes][volts out 4 bytes][power 4 bytes]
+
+For Mightywatt:
+[status 1 byte][amps 4 bytes][volts 4 bytes][power 4 bytes]
