@@ -21,6 +21,11 @@ class FCCBoostDriver(FCCSerialDriver):
         cmd = "{{I={0}}}\n".format(round(i * 100))
         self.write_command(cmd)
 
+    def set_duty_cycle(self, d):
+        """Set duty cycle in a hundredth of percents"""
+        cmd = "{{PWM={0}}}\n".format(round(d * 100))
+        self.write_command(cmd)
+
     def set_off(self):
         cmd = "{OFF=1}\n"
         self.write_command(cmd)

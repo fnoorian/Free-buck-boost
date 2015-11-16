@@ -27,7 +27,7 @@ class FCCBuckDriver(FCCSerialDriver):
         self.write_command(cmd)
 
     def set_duty_cycle(self, d):
-        """Set duty cycle in percents"""
+        """Set duty cycle in a hundredth of percents"""
         cmd = "{{PWM={0}}}\n".format(round(d * 100))
         self.write_command(cmd)
 
