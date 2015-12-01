@@ -2,7 +2,8 @@ import serial
 import serial.tools.list_ports
 import json
 
-class FCCSerialDriver():
+
+class FCCSerialDriver:
 
     @staticmethod
     def find_all_ports():
@@ -10,41 +11,41 @@ class FCCSerialDriver():
     
     @staticmethod
     def find_port_for_sn(sn):
-        """Returns the COM port id of a given serial number"""
+        # """Returns the COM port id of a given serial number"""
         for p in serial.tools.list_ports.comports():
             if p[2].endswith(sn):
                 return p[0]
         return None
 
-    def __init__(self, sn = None, portname = None):
+    def __init__(self, sn=None, port_name=None):
 
-        if sn is not None: # user serial number to open port
+        if sn is not None:  # user serial number to open port
             self.open_serial(sn)
-        elif portname is not None: # user portname to open device
-            self.open_port(portname)
+        elif port_name is not None:  # user port_name to open device
+            self.open_port(port_name)
         else:
-            self.serial = None # the serial object
-            self.dev_id = None # the device ID string
+            self.serial = None  # the serial object
+            self.dev_id = None  # the device ID string
 
-    def open_port(self, portname, baud = 115200):
-        """Open device based on port name"""
+    def open_port(self, port_name, baud=115200):
+        # """Open device based on port name"""
 
-        self.serial = serial.Serial(port_num, baud)
-        self.dev_id =  self.readline_json()
+        self.serial = serial.Serial(port_name, baud)
+        self.dev_id = self.readline_json()
 
-    def open_serial(self, sn, baud = 115200):
-        """Open device based on serial number"""
+    def open_serial(self, sn, baud=115200):
+        # """Open device based on serial number"""
 
         port_num = self.find_port_for_sn(sn)
         self.open_port(port_num, baud)
 
     def readline_json(self):
         line = self.serial.readline()
-        #print("Read: ", line)
+        # print("Read: ", line)
         return json.loads(line.decode())
 
     def write_command(self, cmd):
-        #print("Writing: ", cmd)
+        # print("Writing: ", cmd)
         self.serial.write(cmd.encode())
 
     def close(self):

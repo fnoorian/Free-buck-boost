@@ -1,13 +1,13 @@
-from drivers.fcc_base_driver import FCCSerialDriver
+from drivers.fcc_base_driver_mock import FCCSerialDriver
 
 
 class FCCBoostDriver(FCCSerialDriver):
-    
+
     def get_identity(self):
         cmd = "{IDN=1}\n"
         self.write_command(cmd)
 
-        return self.readline_json()
+        return self.read_line_json()
 
     def set_power(self, p):
         cmd = "{{P={0}}}\n".format(round(p * 100))
@@ -35,7 +35,8 @@ class FCCBoostDriver(FCCSerialDriver):
         cmd = "{STATUS=1}\n"
         self.write_command(cmd)
 
-        return self.readline_json()
+        return self.read_line_json()
+
 
 def FCCBoostDriver_test():
     drv = FCCBoostDriver()
@@ -47,4 +48,9 @@ def FCCBoostDriver_test():
     drv.set_mppt()
     while (True):
         print(drv.read_status())
+
+if __name__ == '__main__':
+    test = FCCBoostDriver(port_name='test')
+    test.set_power(10)
+    test.set_volt(100)
 

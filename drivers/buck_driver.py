@@ -1,4 +1,5 @@
-from fcc_base_driver import FCCSerialDriver
+from drivers.fcc_base_driver import FCCSerialDriver
+
 
 class FCCBuckDriver(FCCSerialDriver):
 
@@ -41,6 +42,7 @@ class FCCBuckDriver(FCCSerialDriver):
 
         return self.readline_json()
 
+
 class FCCMPPTDriver(FCCBuckDriver):
 
     def open(self):
@@ -50,6 +52,7 @@ class FCCMPPTDriver(FCCBuckDriver):
         cmd = "{MPPT=1}\n"
         self.write_command(cmd)
 
+
 def FCCBuck_Test():
     drv = FCCMPPTDriver()
     drv.open_serial('SNR=95238343234351A00181')
@@ -58,6 +61,6 @@ def FCCBuck_Test():
     print(drv.get_identity())
 
     drv.set_mppt()
-    while (True):
+    while True:
         print(drv.read_status())
 

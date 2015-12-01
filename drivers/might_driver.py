@@ -1,4 +1,5 @@
-from fcc_base_driver import FCCSerialDriver
+from drivers.fcc_base_driver import FCCSerialDriver
+
 
 class MightyWattDriver(FCCSerialDriver):
 
