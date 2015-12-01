@@ -7,7 +7,16 @@ class FCCSerialDriver:
 
     @staticmethod
     def find_all_ports():
-        return serial.tools.list_ports.comports()   # return file list
+        import os
+        import sys
+        ports = os.walk(sys.path[0]+'/mock_ports/')
+        del os
+        del sys
+        port_list = []
+        for port in ports:
+            port_list += port[2]
+        return port_list
+        # return serial.tools.list_ports.comports()   # return file list
 
     @staticmethod
     def find_port_for_sn(sn):   # return this file name
@@ -24,9 +33,10 @@ class FCCSerialDriver:
             self.dev_id = None
 
     def open_port(self, port_name, baud=115200):
-        import sys, os
-        self.serial = open('/home/vincent/Dropbox/Workspace/Python/Free-buck-boost/drivers/mock_ports/'+port_name, 'w+')    # should be replaced by open file
-        #self.dev_id = self.read_line_json()
+        import sys
+        self.serial = open(sys.path[0]+'/mock_ports/'+port_name, 'w+')
+        del sys
+        # self.dev_id = self.read_line_json()
 
     def open_serial(self, sn, baud=115200):
         port_name = self.find_port_for_sn(sn)
@@ -51,6 +61,7 @@ class FCCSerialDriver:
 if __name__ == '__main__':
     # import pprint
     # pprint.pprint(FCCSerialDriver.find_all_ports())
-    test = FCCSerialDriver(port_name='test')
+    test = FCCSerialDriver(port_name='port_1')
+    print(test.find_all_ports())
     test.write_command('hahha')
 
