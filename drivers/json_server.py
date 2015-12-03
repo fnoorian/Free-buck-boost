@@ -4,13 +4,16 @@ from werkzeug.serving import run_simple
 # this use package json-rpc (not jsonrpc!)
 from jsonrpc import JSONRPCResponseManager, dispatcher
 
-from boost_driver import FCCBoostDriver 
-from buck_driver import FCCBuckDriver, FCCMPPTDriver 
-from mighty_driver import MightyWattDriver 
+from drivers.boost_driver import FCCBoostDriver
+from drivers.buck_driver import FCCBuckDriver, FCCMPPTDriver
+from drivers.mighty_driver import MightyWattDriver
+
 
 @dispatcher.add_method
 def get_version():
-    return ("fcc_json_server", 1)
+    version = ["fcc_json_server", 1]
+    return version
+
 
 @Request.application
 def application(request):

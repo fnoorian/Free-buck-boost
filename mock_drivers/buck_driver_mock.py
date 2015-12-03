@@ -1,16 +1,17 @@
-from drivers.fcc_base_driver import FCCSerialDriver
+from mock_drivers.fcc_base_driver_mock import FCCSerialDriver
+import json
 
 
 class FCCBuckDriver(FCCSerialDriver):
-
     def open(self):
         self.open_serial(self.SN_FCC_Buck)
 
     def get_identity(self):
         cmd = "{IDN=1}\n"
         self.write_command(cmd)
-
-        return self.readline_json()
+        mock_read_line_json = json.loads('{"device": "FreeChargeControlBuck", '
+                                         '"version":1}')
+        return mock_read_line_json
 
     def set_power(self, p):
         """Set power in watts"""
@@ -39,8 +40,15 @@ class FCCBuckDriver(FCCSerialDriver):
     def read_status(self):
         cmd = "{STATUS=1}\n"
         self.write_command(cmd)
-
-        return self.readline_json()
+        mock_read_line_json = json.loads('{"time": 23, '
+                                         '"state": "off", '
+                                         '"target": 0.00, '
+                                         '"pwm": 9.98, '
+                                         '"volts_in": 0.10, '
+                                         '"volts_out": 0.08, '
+                                         '"amps_in": 0.01, '
+                                         '"watts_in": 0.00}')
+        return mock_read_line_json
 
 
 class FCCMPPTDriver(FCCBuckDriver):
@@ -63,4 +71,11 @@ def FCCBuck_Test():
     drv.set_mppt()
     while True:
         print(drv.read_status())
+
+if __name__ == '__main__':
+    test = FCCBuckDriver(port_name='port_2')
+    test.set_power(10)
+    test.set_volt(1001)
+    print(test.read_status())
+    print(test.get_identity())
 
