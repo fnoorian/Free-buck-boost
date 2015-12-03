@@ -1,27 +1,37 @@
-from drivers.fcc_base_driver import FCCSerialDriver
+from fcc_base_driver import FCCSerialDriver
 
 
 class MightyWattDriver(FCCSerialDriver):
 
     def get_identity(self):
+        """Get device identity"""
+
         cmd = "{IDN}\n"
         self.write_command(cmd)
 
         return self.readline_json()
 
     def set_power(self, p):
+        """Set power in watts"""
+
         cmd = "{{P={0}}}\n".format(round(p * 1000))
         self.write_command(cmd)
 
     def set_current(self, i):
+        """Set current in amps"""
+
         cmd = "{{I={0}}}\n".format(round(i * 1000))
         self.write_command(cmd)
         
     def set_volt(self, v):
+        """Set voltage in volts"""
+
         cmd = "{{V={0}}}\n".format(round(v * 1000))
         self.write_command(cmd)
         
     def set_resistance(self, r):
+        """Set load resistance in volts"""
+
         cmd = "{{R={0}}}\n".format(round(r * 1000))
         self.write_command(cmd)
 
@@ -42,7 +52,7 @@ def MightyWattDriver_Test():
 
     print(drv.get_identity())
 
-    drv.set_power(1.0)
+    drv.set_power(4.5) # set power to 4.5 watts
     while (True):
         print(drv.read_status())
 

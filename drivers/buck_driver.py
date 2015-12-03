@@ -1,4 +1,4 @@
-from drivers.fcc_base_driver import FCCSerialDriver
+from fcc_base_driver import FCCSerialDriver
 
 
 class FCCBuckDriver(FCCSerialDriver):
@@ -7,6 +7,8 @@ class FCCBuckDriver(FCCSerialDriver):
         self.open_serial(self.SN_FCC_Buck)
 
     def get_identity(self):
+        """Get device identity"""
+
         cmd = "{IDN=1}\n"
         self.write_command(cmd)
 
@@ -14,29 +16,36 @@ class FCCBuckDriver(FCCSerialDriver):
 
     def set_power(self, p):
         """Set power in watts"""
+
         cmd = "{{P={0}}}\n".format(round(p * 100))
         self.write_command(cmd)
 
     def set_volt(self, v):
         """Set voltage in volts"""
+
         cmd = "{{V={0}}}\n".format(round(v * 100))
         self.write_command(cmd)
 
     def set_current(self, i):
         """Set current in amps"""
+
         cmd = "{{I={0}}}\n".format(round(i * 100))
         self.write_command(cmd)
 
     def set_duty_cycle(self, d):
-        """Set duty cycle in a hundredth of percents"""
+        """Set duty cycle in percents"""
+
         cmd = "{{PWM={0}}}\n".format(round(d * 100))
         self.write_command(cmd)
 
     def set_off(self):
+        """Turns off all mosfets"""
+
         cmd = "{OFF=1}\n"
         self.write_command(cmd)
 
     def read_status(self):
+
         cmd = "{STATUS=1}\n"
         self.write_command(cmd)
 
@@ -60,7 +69,7 @@ def FCCBuck_Test():
 
     print(drv.get_identity())
 
-    drv.set_mppt()
+    drv.set_power(4.5) # set power to 4.5 watts
     while True:
         print(drv.read_status())
 
