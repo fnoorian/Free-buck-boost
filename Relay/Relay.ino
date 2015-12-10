@@ -3,13 +3,17 @@
 
 #define IN_1  6  // White/Green cable, Arduino Digital I/O pin number
 #define IN_2  7  // Yellow/Black cable, Arduino Digital I/O pin number
+#define IN_3  8
+#define IN_4  9
 
 void setup() {
 Serial.begin(9600); //begin reading at this baud rate
 
 //set pins as outputs
 pinMode(IN_1, OUTPUT);      
-pinMode(IN_2, OUTPUT);      
+pinMode(IN_2, OUTPUT);  
+pinMode(IN_3, OUTPUT); 
+pinMode(IN_4, OUTPUT);     
 }
 
 void loop() {
@@ -37,5 +41,27 @@ void loop() {
   digitalWrite(IN_2, val);   // sets the LED on
     
   }
+  
+  if (stricmp(cmd, "R3") == 0)  {
+  digitalWrite(IN_2, val);   // sets the LED on
+    
   }
+  
+  if (stricmp(cmd, "R4") == 0)  {
+  digitalWrite(IN_2, val);   // sets the LED on
+    
+  }
+
+  if (stricmp(cmd, "ReadRel") ==0) {
+  Serial.print("{\"Relay1\":");
+  Serial.print(digitalRead(IN_1));
+   Serial.print(", \"Relay2\":");
+  Serial.print(digitalRead(IN_2));
+   Serial.print(", \"Relay3\":");
+  Serial.print(digitalRead(IN_3));
+   Serial.print(", \"Relay4\":");
+  Serial.print(digitalRead(IN_4));
+   Serial.print("}\n");
+  }
+}
 }
