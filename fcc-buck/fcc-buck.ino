@@ -14,6 +14,7 @@
 //------------------------------------------------------------------------------------------------------
 
 #include <TimerOne.h>          // using Timer1 library from http://www.arduino.cc/playground/Code/Timer1
+#include "lpf.h"               // Moving average low pass filter implementation
 
 //------------------------------------------------------------------------------------------------------
 // definitions
@@ -83,48 +84,10 @@ struct system_states_t {
 unsigned int seconds = 0;             // seconds from timer routine
   
 //------------------------------------------------------------------------------------------------------
-// Circular buffer type for ADC averaging filter
-class LowPassBuffer {
-  public:
-    const static int N = AVG_NUM;
-
-    void Init(void) {
-      data_len = 0;
-      current_pointer = 0;
-    }
-
-    void AddData(int x) {
-      buffer[current_pointer] = x;
-
-      current_pointer++;
-      if (current_pointer >= N) {
-        current_pointer = 0;
-      }
-
-      data_len++;
-      if (data_len > N) {
-        data_len = N;
-      }
-    }
-
-    int GetAverage() {
-      int sum = 0;
-      for (uint8_t i=0; i<data_len;i++) {
-        sum += buffer[i];
-      }
-
-      return (sum / data_len);
-    }
-        
-  private:
-    int buffer[N];
-    uint8_t data_len;
-    uint8_t current_pointer;
-};
-
-LowPassBuffer lpf_in_volts;
-LowPassBuffer lpf_in_amps;
-LowPassBuffer lpf_out_volts;
+typedef LowPassBuffer<16, unsigned int> LPF;
+LPF lpf_in_volts;
+LPF lpf_in_amps;
+LPF lpf_out_volts;
 
 //------------------------------------------------------------------------------------------------------
 // This is interrupt service routine for Timer1 that occurs every 20uS.
