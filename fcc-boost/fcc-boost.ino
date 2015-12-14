@@ -14,6 +14,7 @@
 //------------------------------------------------------------------------------------------------------
 
 #include <TimerOne.h>          // using Timer1 library from http://www.arduino.cc/playground/Code/Timer1
+#include "lpf.h"               // Moving average low pass filter implementation
 
 //------------------------------------------------------------------------------------------------------
 // definitions
@@ -69,6 +70,12 @@ struct system_states_t {
 } power_status;
 
 unsigned int seconds = 0;             // seconds from timer routine
+
+//------------------------------------------------------------------------------------------------------
+typedef LowPassBuffer<16, unsigned int> LPF;
+LPF lpf_in_volts;
+LPF lpf_in_amps;
+LPF lpf_out_volts;
 
 //------------------------------------------------------------------------------------------------------
 // This is interrupt service routine for Timer1 that occurs every 20uS.
@@ -195,11 +202,20 @@ void print_identity()
 // watts from the solar amps times the solar voltage and rounds and scales that by 100 (2 decimal places) also.
 //------------------------------------------------------------------------------------------------------
 void read_data(void) {
-  
-  power_status.sol_amps =  SOL_AMPS_SCALE * read_adc(ADC_SOL_AMPS_CHAN) ;// * read_adc(ADC_SOL_AMPS_CHAN); //((read_adc(ADC_SOL_AMPS_CHAN)  * SOL_AMPS_SCALE) + 5) / 10;    //input of solar amps result scaled by 100
-  power_status.sol_volts = SOL_VOLTS_SCALE * read_adc(ADC_SOL_VOLTS_CHAN); //((read_adc(ADC_SOL_VOLTS_CHAN) * SOL_VOLTS_SCALE) + 5) / 10;   //input of solar volts result scaled by 100
-  power_status.bat_volts = BAT_VOLTS_SCALE * read_adc(ADC_BAT_VOLTS_CHAN); // ((read_adc(ADC_BAT_VOLTS_CHAN) * BAT_VOLTS_SCALE) + 5) / 10;   //input of battery volts result scaled by 100
+
+  lpf_in_volts.AddData ( analogRead(ADC_SOL_VOLTS_CHAN) );
+  lpf_out_volts.AddData( analogRead(ADC_BAT_VOLTS_CHAN) );
+  lpf_in_amps.AddData  ( analogRead(ADC_SOL_AMPS_CHAN) );
+
+  power_status.sol_amps =  SOL_AMPS_SCALE * lpf_in_amps.GetAverage();
+  power_status.sol_volts = SOL_VOLTS_SCALE * lpf_in_volts.GetAverage();
+  power_status.bat_volts = BAT_VOLTS_SCALE * lpf_out_volts.GetAverage();
   power_status.sol_watts = (int)((((long)power_status.sol_amps * (long)power_status.sol_volts) + 50) / 100);    //calculations of solar watts scaled by 10000 divide by 100 to get scaled by 100                 
+
+  // power_status.sol_amps =  SOL_AMPS_SCALE * read_adc(ADC_SOL_AMPS_CHAN) ;// * read_adc(ADC_SOL_AMPS_CHAN); //((read_adc(ADC_SOL_AMPS_CHAN)  * SOL_AMPS_SCALE) + 5) / 10;    //input of solar amps result scaled by 100
+  // power_status.sol_volts = SOL_VOLTS_SCALE * read_adc(ADC_SOL_VOLTS_CHAN); //((read_adc(ADC_SOL_VOLTS_CHAN) * SOL_VOLTS_SCALE) + 5) / 10;   //input of solar volts result scaled by 100
+  // power_status.bat_volts = BAT_VOLTS_SCALE * read_adc(ADC_BAT_VOLTS_CHAN); // ((read_adc(ADC_BAT_VOLTS_CHAN) * BAT_VOLTS_SCALE) + 5) / 10;   //input of battery volts result scaled by 100
+  // power_status.sol_watts = (int)((((long)power_status.sol_amps * (long)power_status.sol_volts) + 50) / 100);    //calculations of solar watts scaled by 10000 divide by 100 to get scaled by 100                 
 }
 //------------------------------------------------------------------------------------------------------
 // Routines to set the device mode and the state machine
