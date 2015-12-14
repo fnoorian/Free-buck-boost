@@ -137,31 +137,25 @@ void print_data(void) {
   else if (power_status.mode == MODE_CONST_CURRENT)  Serial.print("amps   ");
   else if (power_status.mode == MODE_CONST_POWER)    Serial.print("watt   ");
   else if (power_status.mode == MODE_CONST_DUTY)     Serial.print("duty   ");
-  Serial.print("  ");
 
-  Serial.print("target = ");
+  Serial.print("  target = ");
   print_int100_dec2(power_status.target);
-
-  Serial.print("pwm = ");
+  
+  Serial.print("  pwm = ");
   print_int100_dec2((long)power_status.pwm_duty * 10000 / (PWM_FULL - 1));
-  Serial.print("  ");
-
-  Serial.print("s_amps = ");
+  
+  Serial.print("  s_amps = ");
   print_int100_dec2(power_status.sol_amps);
-  Serial.print("  ");
-
-  Serial.print("s_volts = ");
+  
+  Serial.print("  s_volts = ");
   print_int100_dec2(power_status.sol_volts);
-  Serial.print("  ");
 
-  Serial.print("s_watts = ");
+  Serial.print("  s_watts = ");
   print_int100_dec2(power_status.sol_watts);
-  Serial.print("  ");
-
-  Serial.print("b_volts = ");
+  
+  Serial.print("  b_volts = ");
   print_int100_dec2(power_status.bat_volts);
-  Serial.print("  ");
-
+  
   Serial.print("\n\r");
 }
 
@@ -216,9 +210,9 @@ void print_identity()
 //------------------------------------------------------------------------------------------------------
 void read_data(void) {
 
-  lpf_in_volts.AddData(  analogRead(ADC_SOL_VOLTS_CHAN) );
+  lpf_in_volts.AddData ( analogRead(ADC_SOL_VOLTS_CHAN) );
   lpf_out_volts.AddData( analogRead(ADC_BAT_VOLTS_CHAN) );
-  lpf_in_amps.AddData(   analogRead(ADC_SOL_AMPS_CHAN) );
+  lpf_in_amps.AddData  ( analogRead(ADC_SOL_AMPS_CHAN) );
 
   power_status.sol_amps =  SOL_AMPS_SCALE * lpf_in_amps.GetAverage();
   power_status.sol_volts = SOL_VOLTS_SCALE * lpf_in_volts.GetAverage();
@@ -602,33 +596,5 @@ void loop()                          // run over and over again
   if (Serial.available() >= 4) {
     get_serial_command();              // read commands from serial
   }
-
-  /*
-  // update power info
-  static int current_target = 0;
-  static unsigned int prev_seconds = 0;        // seconds value from previous pass
-  if ((seconds - prev_seconds) > 4) {  
-    prev_seconds = seconds;		// do this stuff once a second
-
-    if (current_target >= 400) {
-      current_target = 0;
-    }
-    else {
-      current_target = 400;
-    }
-
-    state_switch(MODE_CONST_POWER, current_target);
-    //state_switch(MODE_CONST_VOLT, current_target);
-  }*/
-
-/*  
-  // diagnosistic prints
-  static int print_counter = 0;
-  print_counter++;
-  if (print_counter > 50) {
-    print_data_json(); 
-    print_counter = 0;
-  }
-*/  
 }
 //------------------------------------------------------------------------------------------------------
