@@ -63,8 +63,6 @@
 enum charger_mode_t {MODE_OFF,            // The system is off
                      MODE_MPPT_ON,        // MPPT mode
                      MODE_MPPT_OFF,       // MPPT auto-off mode
-                     MODE_MPPT_BULK,      // MPPT bulck charger
-                     MODE_MPPT_BAT_FLOAT, // MPPT batt float mode
                      MODE_CONST_VOLT,     // Constant voltage mode
                      MODE_CONST_CURRENT,  // Constant current mode
                      MODE_CONST_POWER,    // Constant power mode
@@ -82,7 +80,7 @@ struct system_states_t {
 } power_status;
 
 unsigned int seconds = 0;             // seconds from timer routine
-  
+
 //------------------------------------------------------------------------------------------------------
 typedef LowPassBuffer<16, unsigned int> LPF;
 LPF lpf_in_volts;
@@ -130,9 +128,7 @@ void print_data(void) {
   Serial.print("charger = ");
   if (power_status.mode == MODE_OFF)                 Serial.print("off    ");
   else if (power_status.mode == MODE_MPPT_ON)        Serial.print("mppton ");
-  else if (power_status.mode == MODE_MPPT_OFF)       Serial.print("autooff");
-  else if (power_status.mode == MODE_MPPT_BULK)      Serial.print("bulk   ");
-  else if (power_status.mode == MODE_MPPT_BAT_FLOAT) Serial.print("float  ");
+  else if (power_status.mode == MODE_MPPT_OFF)       Serial.print("mpptoff");
   else if (power_status.mode == MODE_CONST_VOLT)     Serial.print("volt   ");
   else if (power_status.mode == MODE_CONST_CURRENT)  Serial.print("amps   ");
   else if (power_status.mode == MODE_CONST_POWER)    Serial.print("watt   ");
@@ -167,8 +163,6 @@ void print_data_json(void) {
   if (power_status.mode == MODE_OFF)                 Serial.print("\"off\",    ");
   else if (power_status.mode == MODE_MPPT_ON)        Serial.print("\"mppton\", ");
   else if (power_status.mode == MODE_MPPT_OFF)       Serial.print("\"mpptoff\",");
-  else if (power_status.mode == MODE_MPPT_BULK)      Serial.print("\"bulk\",   ");
-  else if (power_status.mode == MODE_MPPT_BAT_FLOAT) Serial.print("\"float\",  ");
   else if (power_status.mode == MODE_CONST_VOLT)     Serial.print("\"volt\",   ");
   else if (power_status.mode == MODE_CONST_CURRENT)  Serial.print("\"amps\",   ");
   else if (power_status.mode == MODE_CONST_POWER)    Serial.print("\"watt\",   ");
@@ -224,7 +218,6 @@ void read_data(void) {
 //  power_status.bat_volts = BAT_VOLTS_SCALE * read_adc(ADC_BAT_VOLTS_CHAN); // ((read_adc(ADC_BAT_VOLTS_CHAN) * BAT_VOLTS_SCALE) + 5) / 10;   //input of battery volts result scaled by 100
 //  power_status.sol_watts = (int)((((long)power_status.sol_amps * (long)power_status.sol_volts) + 50) / 100);    //calculations of solar watts scaled by 10000 divide by 100 to get scaled by 100                 
 }
-
 //------------------------------------------------------------------------------------------------------
 // This routine uses the Timer1.pwm function to set the pwm duty cycle. The routine takes the value in
 // the variable pwm as 0-100 duty cycle and scales it to get 0-1034 for the Timer1 routine. 
@@ -390,12 +383,19 @@ void state_switch(charger_mode_t mode, int target = 0) {
       power_status.mode = mode;
       break;
 
+    case MODE_MPPT_OFF:
+      TURN_OFF_MOSFETS;
+      power_status.mode = mode;
+      break;
+
     default:
       break;
   }
 }
 
-// State machine for different modes
+//------------------------------------------------------------------------------------------------------
+// Routines to set the device mode and the state machine
+//------------------------------------------------------------------------------------------------------
 void state_machine(void) {
   switch (power_status.mode) {
     case MODE_CONST_VOLT:
@@ -411,11 +411,17 @@ void state_machine(void) {
       break; // nothing to be done in constant duty pwm mode, as duty cycle is already set in "state_switch"
     case MODE_OFF:
       break; // do nothing if it is in off mode
-    default: // other cases: call mppt state-machine
-      MPPT_state_machine();
+    case MODE_MPPT_ON: 
+    case MODE_MPPT_OFF:
+      MPPT_state_machine(); // call mppt state-machine
+    default: // other cases: do nothing
       break;
   }
 }
+
+//------------------------------------------------------------------------------------------------------
+// Reading JSON commands from the serial port
+//------------------------------------------------------------------------------------------------------
 
 void get_serial_command() {
   /* Variables used for parsing and tokenising */
@@ -469,7 +475,8 @@ void get_serial_command() {
 //------------------------------------------------------------------------------------------------------
 void setup()                               // run once, when the sketch starts
 {
-  Serial.begin(115200);                    // open the serial port at 9600 bps:
+  Serial.begin(115200);                    // open the serial port at 115200 bps:
+
   Timer1.initialize(20);                   // initialize timer1, and set a 20uS period
   Timer1.pwm(PWM_PIN, 0);                  // setup pwm on pin 9, 0% duty cycle
   Timer1.attachInterrupt(timer_callback);  // attaches timer_callback() as a timer overflow interrupt

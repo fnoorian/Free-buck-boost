@@ -38,7 +38,6 @@
 #define PWM_START           PWM_MIN       // the value for pwm duty cyle 0-100.0%
 #define PWM_INC             4             // the value the increment to the pwm value for the ppt algorithm
 
-#define AVG_NUM             2             // number of iterations of the adc routine to average the adc readings
 #define SOL_AMPS_SCALE      0.5           // the scaling value for raw adc reading to get solar amps scaled by 100 [(1/(0.005*(3.3k/25))*(5/1023)*100]
 #define SOL_VOLTS_SCALE     2.7           // the scaling value for raw adc reading to get solar volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
 #define BAT_VOLTS_SCALE     2.7           // the scaling value for raw adc reading to get battery volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
@@ -91,53 +90,7 @@ void timer_callback()
     seconds++;                                   //then increment seconds counter
   }
 }
-//------------------------------------------------------------------------------------------------------
-// This routine reads and averages the analog inputs for this system, solar volts, solar amps and 
-// battery volts. It is called with the adc channel number (pin number) and returns the average adc 
-// value as an integer. 
-//------------------------------------------------------------------------------------------------------
-int read_adc(int channel){
-  
-  int sum = 0;
-  
-  for (int i=0; i<AVG_NUM; i++) {            // loop through reading raw adc values AVG_NUM number of times  
-    int temp = analogRead(channel);          // read the input pin  
-    sum += temp;                        // store sum for averaging
-   // delayMicroseconds(2);              // pauses for 50 microseconds  
-  }
-  return(sum / AVG_NUM);                // divide sum by AVG_NUM to get average and return it
-}
 
-//------------------------------------------------------------------------------------------------------
-// This routine uses the Timer1.pwm function to set the pwm duty cycle. The routine takes the value in
-// the variable pwm as 0-100 duty cycle and scales it to get 0-1034 for the Timer1 routine. 
-// There is a special case for 100% duty cycle. Normally this would be have the top MOSFET on all the time
-// but the MOSFET driver IR2104 uses a charge pump to generate the gate voltage so it has to keep running 
-// all the time. So for 100% duty cycle I set the pwm value to 1023 - 1 so it is on 99.9% almost full on 
-// but is switches enough to keep the charge pump on IR2104 working.
-//------------------------------------------------------------------------------------------------------
-
-void set_pwm_duty(int pwm) {
-
-  if (pwm > PWM_MAX) {					   // check limits of PWM duty cyle and set to PWM_MAX
-    pwm = PWM_MAX;		
-  }
-  else if (pwm < PWM_MIN) {				   // if pwm is less than PWM_MIN then set it to PWM_MIN
-    pwm = PWM_MIN;
-  }
-  
-  power_status.pwm_duty = pwm;                             // store this value in the status
-  
-  if (pwm < PWM_MAX) {
-    Timer1.pwm(PWM_PIN, PWM_FULL - pwm, 20); // use Timer1 routine to set pwm duty cycle at 20uS period
-    //Timer1.pwm(PWM_PIN,(PWM_FULL * (long)pwm / 100));
-  }												
-  else if (pwm == PWM_MAX) {				  // if pwm set to 100% it will be on full but we have 
-    Timer1.pwm(PWM_PIN, 4, 1000);             // keep switching so set duty cycle at 99.9% and slow down to 1000uS period 
-    //Timer1.pwm(PWM_PIN,(PWM_FULL - 1));              
-  }												
-}				
-									
 //-----------------------------------------------------------------------------------
 // This function prints int that was scaled by 100 with 2 decimal places
 //-----------------------------------------------------------------------------------
@@ -145,7 +98,7 @@ void print_int100_dec2(int temp) {
 
   Serial.print(temp/100,DEC);        // divide by 100 and print interger value
   Serial.print(".");
-  if ((temp%100) < 10) {              // if fractional value has only one digit
+  if ((temp%100) < 10) {             // if fractional value has only one digit
     Serial.print("0");               // print a "0" to give it two digits
     Serial.print(temp%100,DEC);      // get remainder and print fractional value
   }
@@ -218,9 +171,41 @@ void read_data(void) {
   // power_status.sol_watts = (int)((((long)power_status.sol_amps * (long)power_status.sol_volts) + 50) / 100);    //calculations of solar watts scaled by 10000 divide by 100 to get scaled by 100                 
 }
 //------------------------------------------------------------------------------------------------------
-// Routines to set the device mode and the state machine
+// This routine uses the Timer1.pwm function to set the pwm duty cycle. The routine takes the value in
+// the variable pwm as 0-100 duty cycle and scales it to get 0-1034 for the Timer1 routine. 
+// There is a special case for 100% duty cycle. Normally this would be have the top MOSFET on all the time
+// but the MOSFET driver IR2104 uses a charge pump to generate the gate voltage so it has to keep running 
+// all the time. So for 100% duty cycle I set the pwm value to 1023 - 1 so it is on 99.9% almost full on 
+// but is switches enough to keep the charge pump on IR2104 working.
 //------------------------------------------------------------------------------------------------------
 
+void set_pwm_duty(int pwm) {
+
+  if (pwm > PWM_MAX) {					   // check limits of PWM duty cyle and set to PWM_MAX
+    pwm = PWM_MAX;		
+  }
+  else if (pwm < PWM_MIN) {				   // if pwm is less than PWM_MIN then set it to PWM_MIN
+    pwm = PWM_MIN;
+  }
+  
+  power_status.pwm_duty = pwm;                             // store this value in the status
+  
+  if (pwm < PWM_MAX) {
+    Timer1.pwm(PWM_PIN, PWM_FULL - pwm, 20); // use Timer1 routine to set pwm duty cycle at 20uS period
+    //Timer1.pwm(PWM_PIN,(PWM_FULL * (long)pwm / 100));
+  }												
+  else if (pwm == PWM_MAX) {				  // if pwm set to 100% it will be on full but we have 
+    Timer1.pwm(PWM_PIN, 4, 1000);             // keep switching so set duty cycle at 99.9% and slow down to 1000uS period 
+    //Timer1.pwm(PWM_PIN,(PWM_FULL - 1));              
+  }												
+}	
+
+//------------------------------------------------------------------------------------------------------
+// PWM Adjustments for constant voltage and constant power modes.
+// If "target_difference" > 0, it increases PWM
+// If "target_difference" < 0, it decreases PWM
+// The PWM step adjustment depends on the difference between target and current voltage/power
+//------------------------------------------------------------------------------------------------------
 void adjust_pwm(int target_difference) {
 
   int current_pwm = power_status.pwm_duty;
@@ -266,7 +251,9 @@ void state_switch(charger_mode_t mode, int target = 0) {
   }
 }
 
-// State machine for different modes
+//------------------------------------------------------------------------------------------------------
+// Routines to set the device mode and the state machine
+//------------------------------------------------------------------------------------------------------
 void state_machine(void) {
   switch (power_status.mode) {
     case MODE_CONST_VOLT:
@@ -283,7 +270,6 @@ void state_machine(void) {
     case MODE_OFF:
     default: // other cases
       break; // do nothing if it is in off mode
-      break;
   }
 }
 
@@ -343,14 +329,20 @@ void get_serial_command() {
 void setup()                            // run once, when the sketch starts
 {
   Serial.begin(115200);                   // open the serial port at 115200 bps
-  pinMode(PWM_ENABLE_PIN, OUTPUT);        // sets the digital pin as output
-  TURN_OFF_MOSFETS;                       //turn off MOSFET driver chip
 
   Timer1.initialize(20);                  // initialize timer1, and set a 20uS period
   Timer1.pwm(PWM_PIN, 0);                 // setup pwm on pin 9, 0% duty cycle
   Timer1.attachInterrupt(timer_callback); // attaches callback() as a timer overflow interrupt
-  
-  state_switch(MODE_OFF);
+
+  pinMode(PWM_ENABLE_PIN, OUTPUT);        // sets the digital pin as output
+  TURN_OFF_MOSFETS;                       //turn off MOSFET driver chip
+  set_pwm_duty(PWM_START);
+
+  lpf_in_volts.Init();                     // initialize ADC low-pass filters
+  lpf_out_volts.Init();
+  lpf_in_amps.Init();
+
+  state_switch(MODE_OFF);                     // start with charger state as off
 
   print_identity();
 }
@@ -370,5 +362,4 @@ void loop()                          // run over and over again
     get_serial_command();              // read commands from serial
   }
 }
-
 //------------------------------------------------------------------------------------------------------
