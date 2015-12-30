@@ -68,7 +68,7 @@ struct system_states_t {
    charger_mode_t mode;                  // state of the charge state machine
 } power_status;
 
-unsigned int seconds = 0;             // seconds from timer routine
+unsigned int g_seconds = 0;             // seconds from timer routine
 
 //------------------------------------------------------------------------------------------------------
 typedef LowPassBuffer<16, unsigned int> LPF;
@@ -87,65 +87,8 @@ void timer_callback()
 
   if (interrupt_counter++ > ONE_SECOND) {        //increment interrupt_counter until one second has passed
     interrupt_counter = 0;  
-    seconds++;                                   //then increment seconds counter
+    g_seconds++;                                   //then increment seconds counter
   }
-}
-
-//-----------------------------------------------------------------------------------
-// This function prints int that was scaled by 100 with 2 decimal places
-//-----------------------------------------------------------------------------------
-void print_int100_dec2(int temp) {
-
-  Serial.print(temp/100,DEC);        // divide by 100 and print interger value
-  Serial.print(".");
-  if ((temp%100) < 10) {             // if fractional value has only one digit
-    Serial.print("0");               // print a "0" to give it two digits
-    Serial.print(temp%100,DEC);      // get remainder and print fractional value
-  }
-  else {
-    Serial.print(temp%100,DEC);      // get remainder and print fractional value
-  }
-}
-//------------------------------------------------------------------------------------------------------
-// This routine prints all the data out to the serial port.
-//------------------------------------------------------------------------------------------------------
-void print_data_json(void) {
-  Serial.print("{\"time\": ");
-  Serial.print(seconds, DEC);
-
-  Serial.print(", \"state\": ");
-  if (power_status.mode == MODE_OFF)                 Serial.print("\"off\",    ");
-  else if (power_status.mode == MODE_CONST_VOLT)     Serial.print("\"volt\",   ");
-  else if (power_status.mode == MODE_CONST_CURRENT)  Serial.print("\"amps\",   ");
-  else if (power_status.mode == MODE_CONST_POWER)    Serial.print("\"watt\",   ");
-  else if (power_status.mode == MODE_CONST_DUTY)     Serial.print("\"duty\",   ");
-
-  Serial.print(" \"target\": ");
-  print_int100_dec2(power_status.target);
-
-  Serial.print(", \"pwm\": ");
-  print_int100_dec2((long)power_status.pwm_duty * 10000 / (PWM_FULL - 1));
-
-  Serial.print(", \"volts_in\": ");
-  print_int100_dec2(power_status.sol_volts);
-
-  Serial.print(", \"volts_out\": ");
-  print_int100_dec2(power_status.bat_volts);
-
-  Serial.print(", \"amps_in\": ");
-  print_int100_dec2(power_status.sol_amps);
-
-  Serial.print(", \"watts_in\": ");
-  print_int100_dec2(power_status.sol_watts);
-
-  Serial.println("}");
-}
-//------------------------------------------------------------------------------------------------------
-// Prints device identity as a JSON string
-//------------------------------------------------------------------------------------------------------
-void print_identity() 
-{
-    Serial.println("{\"device\": \"FreeChargeControlBoost\", \"version\":1}");
 }
 
 //------------------------------------------------------------------------------------------------------
@@ -223,6 +166,11 @@ void adjust_pwm(int target_difference) {
   set_pwm_duty(current_pwm);
 }
 
+//------------------------------------------------------------------------------------------------------
+// Switch state to the mode, to reach the given target
+// mode: A charger_mode_t constant
+// target: Value to reach in 0.01 of the unit (10 mVs, 10 mAs, 10 mWs, etc.)
+//------------------------------------------------------------------------------------------------------
 void state_switch(charger_mode_t mode, int target = 0) {
 
   switch (mode) {
@@ -252,7 +200,7 @@ void state_switch(charger_mode_t mode, int target = 0) {
 }
 
 //------------------------------------------------------------------------------------------------------
-// Routines to set the device mode and the state machine
+// The program State Machine, called from the main loop
 //------------------------------------------------------------------------------------------------------
 void state_machine(void) {
   switch (power_status.mode) {
@@ -274,52 +222,9 @@ void state_machine(void) {
 }
 
 //------------------------------------------------------------------------------------------------------
-// Reading JSON commands from the serial port
+// Termianl functions
 //------------------------------------------------------------------------------------------------------
-
-void get_serial_command() {
-  /* Variables used for parsing and tokenising */
-  char cmd[BUFF_MAX]; // char string to store the command
-  int val;  // Integer to store value
-
-  // read until reaching '{'
-  while (Serial.read() != '{');
-
-  char in_buff[BUFF_MAX]; // Buffer in input
-  int end = Serial.readBytesUntil('}', in_buff, BUFF_MAX); // Read command from serial monitor
-  in_buff[end] = 0; // null terminate the string
-
-  sscanf(in_buff, "%[^= ] = %d}", cmd, &val); // parse the string
-
-  #define stricmp strcasecmp // strangely, arduino uses a different API
-
-  if(!stricmp(cmd,"P")) {
-    state_switch(MODE_CONST_POWER, val);
-  }
-  else if(!stricmp(cmd,"V")) {
-    state_switch(MODE_CONST_VOLT, val);
-  }
-  else if(!stricmp(cmd,"I")) {
-    state_switch(MODE_CONST_CURRENT, val);
-  }
-  else if(!stricmp(cmd,"PWM")) {
-    state_switch(MODE_CONST_DUTY, val);
-  }
-  else if(!stricmp(cmd,"OFF") && val) {
-    state_switch(MODE_OFF);
-  }
-  else if(!stricmp(cmd,"STATUS") && val) {
-    print_data_json();
-  }
-  else if(!stricmp(cmd,"IDN") && val) {
-    print_identity();
-  }
-  else {
-    Serial.print("{\"time\": ");
-    Serial.print(seconds, DEC);
-    Serial.println(", \"state\": \"read_err\"}");
-  }
-}
+#include "terminal.h"
 
 //------------------------------------------------------------------------------------------------------
 // Setup function
@@ -359,7 +264,7 @@ void loop()                          // run over and over again
   read_data();                         //read data from sensors
   state_machine();                     //run the state machine
   if (Serial.available() >= 4) {
-    get_serial_command();              // read commands from serial
+    serve_serial_command();              // read commands from serial
   }
 }
 //------------------------------------------------------------------------------------------------------
