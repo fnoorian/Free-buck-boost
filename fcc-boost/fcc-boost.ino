@@ -55,7 +55,10 @@ enum charger_mode_t {MODE_OFF,            // The system is off
                      MODE_CONST_VOLT,     // Constant voltage mode
                      MODE_CONST_CURRENT,  // Constant current mode
                      MODE_CONST_POWER,    // Constant power mode
-                     MODE_CONST_DUTY      // Constant duty cycle mode
+                     MODE_CONST_DUTY,     // Constant duty cycle mode
+                     MODE_BATT_OFF,       // Battery off mode
+                     MODE_BATT_BULK,      // Battery bulk (constant current) charging mode
+                     MODE_BATT_FLOAT,     // Battery float (constant voltage) charging mode
                     };
 
 struct system_states_t {
@@ -167,6 +170,11 @@ void adjust_pwm(int target_difference) {
 }
 
 //------------------------------------------------------------------------------------------------------
+// Battery Charger Function
+//------------------------------------------------------------------------------------------------------
+#include "charger.h"
+
+//------------------------------------------------------------------------------------------------------
 // Switch state to the mode, to reach the given target
 // mode: A charger_mode_t constant
 // target: Value to reach in 0.01 of the unit (10 mVs, 10 mAs, 10 mWs, etc.)
@@ -194,6 +202,17 @@ void state_switch(charger_mode_t mode, int target = 0) {
       TURN_ON_MOSFETS;
       break;
 
+    case MODE_BATT_BULK:
+    case MODE_BATT_FLOAT:
+      power_status.mode = mode;
+      TURN_ON_MOSFETS;
+      break;
+
+    case MODE_BATT_OFF:
+      power_status.mode = mode;
+      TURN_OFF_MOSFETS;
+      break;
+
     default:
       break;
   }
@@ -215,6 +234,11 @@ void state_machine(void) {
       break;
     case MODE_CONST_DUTY:
       break; // nothing to be done in constant duty pwm mode, as duty cycle is already set in "state_switch"
+    case MODE_BATT_OFF:
+    case MODE_BATT_BULK:
+    case MODE_BATT_FLOAT:
+      Charger_State_Machine();
+      break;
     case MODE_OFF:
     default: // other cases
       break; // do nothing if it is in off mode

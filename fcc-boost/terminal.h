@@ -24,11 +24,14 @@ void print_data_json(void) {
   Serial.print(g_seconds, DEC);
 
   Serial.print(", \"state\": ");
-  if (power_status.mode == MODE_OFF)                 Serial.print("\"off\",    ");
-  else if (power_status.mode == MODE_CONST_VOLT)     Serial.print("\"volt\",   ");
-  else if (power_status.mode == MODE_CONST_CURRENT)  Serial.print("\"amps\",   ");
-  else if (power_status.mode == MODE_CONST_POWER)    Serial.print("\"watt\",   ");
-  else if (power_status.mode == MODE_CONST_DUTY)     Serial.print("\"duty\",   ");
+  if (power_status.mode == MODE_OFF)                 Serial.print("\"off\",       ");
+  else if (power_status.mode == MODE_CONST_VOLT)     Serial.print("\"volt\",      ");
+  else if (power_status.mode == MODE_CONST_CURRENT)  Serial.print("\"amps\",      ");
+  else if (power_status.mode == MODE_CONST_POWER)    Serial.print("\"watt\",      ");
+  else if (power_status.mode == MODE_CONST_DUTY)     Serial.print("\"duty\",      ");
+  else if (power_status.mode == MODE_BATT_OFF)       Serial.print("\"batt_off\",  ");
+  else if (power_status.mode == MODE_BATT_BULK)      Serial.print("\"batt_bulk\", ");
+  else if (power_status.mode == MODE_BATT_FLOAT)     Serial.print("\"batt_flt\",  ");
 
   Serial.print(" \"target\": ");
   print_int100_dec2(power_status.target);
@@ -93,6 +96,9 @@ void serve_serial_command() {
   else if(!stricmp(cmd,"OFF") && val) {
     state_switch(MODE_OFF);
   }
+  else if(!stricmp(cmd,"BATT") && val) {
+    state_switch(MODE_BATT_OFF);
+  } 
   else if(!stricmp(cmd,"STATUS") && val) {
     print_data_json();
   }
