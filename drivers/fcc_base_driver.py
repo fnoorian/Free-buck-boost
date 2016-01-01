@@ -49,6 +49,11 @@ class FCCSerialDriver:
         
         self.serial.write(cmd.encode())
 
+    def write_json_command(self, cmd, val):
+    
+        json_str = '{{"{0}": {1}}}\n".format(cmd, val)
+        self.write_command(json_str)
+
     def close(self):
         if self.serial is not None:
             if self.serial.isOpen():

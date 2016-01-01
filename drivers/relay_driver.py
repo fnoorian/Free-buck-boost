@@ -4,20 +4,16 @@ from time import sleep
 class FCCRelayDriver(FCCSerialDriver):
 
     def get_identity(self):
-        cmd = "{IDN=1}\n"
-        self.write_command(cmd)
-
+        self.write_json_command("IDN", 1)
         return self.readline_json()
 	
     def set_relay(self, num, onoff):
 	
-        cmd = "{{R{0}={1}}}\n".format(num, onoff)
-        self.write_command(cmd)
-	
+        rel_number = 'R{0}'.format(num)
+        self.write_json_command(rel_number, onoff)
+        	
     def get_relay(self):
-        cmd = "{Status=1}\n"
-        self.write_command(cmd)
-     	
+        self.write_json_command("STATUS", 1)
         return self.readline_json()
 	
 

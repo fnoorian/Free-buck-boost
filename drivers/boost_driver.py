@@ -6,48 +6,47 @@ class FCCBoostDriver(FCCSerialDriver):
     def get_identity(self):
         """Get device identity"""
 
-        cmd = "{IDN=1}\n"
-        self.write_command(cmd)
-
+        self.write_json_command("IDN", 1)
         return self.readline_json()
 
     def set_power(self, p):
         """Set power in watts"""
 
-        cmd = "{{P={0}}}\n".format(round(p * 100))
-        self.write_command(cmd)
+        self.write_json_command("P", round(p * 100))
 
     def set_volt(self, v):
         """Set voltage in volts"""
 
-        cmd = "{{V={0}}}\n".format(round(v * 100))
-        self.write_command(cmd)
+        self.write_json_command("V", round(v * 100))
 
     def set_current(self, i):
         """Set current in amps"""
 
-        cmd = "{{I={0}}}\n".format(round(i * 100))
-        self.write_command(cmd)
+        self.write_json_command("I", round(i * 100))
 
     def set_duty_cycle(self, d):
         """Set duty cycle in percents"""
 
-        cmd = "{{PWM={0}}}\n".format(round(d * 100))
-        self.write_command(cmd)
+        self.write_json_command("PWM", round(d * 100))
 
     def set_off(self):
         """Turns off all mosfets"""
 
-        cmd = "{OFF=1}\n"
-        self.write_command(cmd)
+        self.write_json_command("OFF", 1)
 
     def read_status(self):
+        """Read device status"""
 
-        cmd = "{STATUS=1}\n"
-        self.write_command(cmd)
+        self.write_json_command("STATUS", 1)
 
         return self.readline_json()
 
+class FCCChargerDriver(FCCBoostDriver):
+
+    def set_mppt(self):
+        """Enable automatic battery charging mode"""
+        self.write_json_command("BATT", 1)
+        
 def FCCBoostDriver_test():
     drv = FCCBoostDriver()
     drv.open_serial('SNR=95238343234351A00181')

@@ -6,43 +6,35 @@ class MightyWattDriver(FCCSerialDriver):
     def get_identity(self):
         """Get device identity"""
 
-        cmd = "{IDN}\n"
-        self.write_command(cmd)
+        self.write_json_command("IDN", 1)
 
         return self.readline_json()
 
     def set_power(self, p):
         """Set power in watts"""
 
-        cmd = "{{P={0}}}\n".format(round(p * 1000))
-        self.write_command(cmd)
+        self.write_json_command("P", round(p * 1000))
 
     def set_current(self, i):
         """Set current in amps"""
 
-        cmd = "{{I={0}}}\n".format(round(i * 1000))
-        self.write_command(cmd)
+        self.write_json_command("I", round(i * 1000))
         
     def set_volt(self, v):
         """Set voltage in volts"""
 
-        cmd = "{{V={0}}}\n".format(round(v * 1000))
-        self.write_command(cmd)
+        self.write_json_command("V", round(v * 1000))
         
     def set_resistance(self, r):
         """Set load resistance in volts"""
 
-        cmd = "{{R={0}}}\n".format(round(r * 1000))
-        self.write_command(cmd)
+        self.write_json_command("R", round(r * 1000))
 
 #    def set_off(self):
-#        cmd = "{OFF=1}\n"
-#        self.write_command(cmd)
+#        self.write_json_command("OFF", 1)
 
     def read_status(self):
-        cmd = "{MR}\n"
-        self.write_command(cmd)
-
+        self.write_json_command("STATUS", 1)
         return self.readline_json()
 
 def MightyWattDriver_Test():
