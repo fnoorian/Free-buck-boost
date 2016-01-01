@@ -38,11 +38,11 @@ void print_identity()
 void get_serial_command() {
   
     /* Variables used for parsing and tokenising */
-    char buffer[16]; // char string to store the command
+    char in_buff[16]; // char string to store the command
 
     while (Serial.read() != '{');   // read until reaching '{'
-    int len_read = Serial.readBytesUntil('}', buffer, sizeof(buffer)); // Read command from serial monitor
-    buffer[len_read] = 0;  // null terminate the string
+    int len_read = Serial.readBytesUntil('}', in_buff, sizeof(in_buff)); // Read command from serial monitor
+    in_buff[len_read] = 0;  // null terminate the string
 
     #define stricmp strcasecmp // strangely, arduino uses a different API
 
