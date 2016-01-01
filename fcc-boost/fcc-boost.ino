@@ -179,7 +179,7 @@ void adjust_pwm(int target_difference) {
 // mode: A charger_mode_t constant
 // target: Value to reach in 0.01 of the unit (10 mVs, 10 mAs, 10 mWs, etc.)
 //------------------------------------------------------------------------------------------------------
-void state_switch(charger_mode_t mode, int target = 0) {
+void state_switch(const charger_mode_t & mode, int target = 0) {
 
   switch (mode) {
     case MODE_OFF:
@@ -204,13 +204,8 @@ void state_switch(charger_mode_t mode, int target = 0) {
 
     case MODE_BATT_BULK:
     case MODE_BATT_FLOAT:
-      power_status.mode = mode;
-      TURN_ON_MOSFETS;
-      break;
-
     case MODE_BATT_OFF:
-      power_status.mode = mode;
-      TURN_OFF_MOSFETS;
+      Charger_switch_mode(mode);
       break;
 
     default:

@@ -10,7 +10,7 @@ class LowPassBuffer {
       m_current_pointer = 0;
     }
 
-    void AddData(Type x) {
+    void AddData(const Type x) {
       m_buffer[m_current_pointer] = x;
 
       m_current_pointer++;
@@ -24,7 +24,7 @@ class LowPassBuffer {
       }
     }
 
-    Type GetAverage() {
+    Type GetAverage() const {
       Type sum = 0;
       for (uint8_t i=0; i<m_data_len;i++) {
         sum += m_buffer[i];

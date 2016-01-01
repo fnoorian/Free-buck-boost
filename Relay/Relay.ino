@@ -51,7 +51,7 @@ void get_serial_command() {
         // parse the string
         char cmd[16];
         int val;
-        sscanf(buffer, "%[^= ] = %d}", cmd, &val); 
+        sscanf(in_buff, "\"%[^\"]\": %d}", cmd, &val); // parse the string
 
         // check for commands
         if (stricmp(cmd, "R1") == 0) { // sets the Relay 1
