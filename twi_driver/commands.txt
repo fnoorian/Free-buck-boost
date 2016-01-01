@@ -7,7 +7,7 @@ SetCurrent=5, followed by 4 bytes, Little Endian, value in miliA
 SetMPPT=6
 SetDutyCycle=7, followed by 2 byte, pwm ducty cycle in a hundredth of percent 8 bits
 SetResistance=8, followed by 4 bytes, value in milli Ohms (or is it?)
-
+SetBatteryCharger=9
 
 GetIdentity should return
 [Length of message = 1 byte][Identity string, whatever byte]
