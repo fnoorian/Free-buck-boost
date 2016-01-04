@@ -40,10 +40,14 @@ class FCCSerialDriver:
         port_num = self.find_port_for_sn(sn)
         self.open_port(port_num, baud)
 
-    def readline_json(self):
+    def readline_string(self):
         line = self.serial.readline()
+        return line.decode()
+ 
+    def readline_json(self):
+        line = self.readline_string()
         
-        return json.loads(line.decode())
+        return json.loads(line)
 
     def write_command(self, cmd):
         

@@ -12,7 +12,7 @@ class FCCRelayDriver(FCCSerialDriver):
         rel_number = 'R{0}'.format(num)
         self.write_json_command(rel_number, onoff)
         	
-    def get_relay(self):
+    def read_status(self):
         self.write_json_command("STATUS", 1)
         return self.readline_json()
 	
@@ -29,13 +29,13 @@ def FCCRelay_Test():
         drv.set_relay(2, 0)
         drv.set_relay(3, 1)
         drv.set_relay(4, 1)
-        print(drv.get_relay())
+        print(drv.read_status())
         sleep(0.5)
         drv.set_relay(1, 1)
         drv.set_relay(2, 1)
         drv.set_relay(3, 0)
         drv.set_relay(4, 0)
-        print(drv.get_relay())
+        print(drv.read_status())
         sleep(0.5)
 
 FCCRelay_Test()

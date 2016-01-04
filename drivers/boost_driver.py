@@ -41,9 +41,10 @@ class FCCBoostDriver(FCCSerialDriver):
 
         return self.readline_json()
 
+
 class FCCChargerDriver(FCCBoostDriver):
 
-    def set_mppt(self):
+    def set_charger(self):
         """Enable automatic battery charging mode"""
         self.write_json_command("BATT", 1)
         
