@@ -35,6 +35,12 @@ class FCCBuckDriver(FCCSerialDriver):
 
         self.write_json_command("OFF", 1)
 
+    def read_status_string(self):
+        """Read device status as a string"""
+
+        self.write_json_command("STATUS", 1)
+        return self.readline_string()
+
     def read_status(self):
 
         self.write_json_command("STATUS", 1)

@@ -12,6 +12,12 @@ class FCCRelayDriver(FCCSerialDriver):
         rel_number = 'R{0}'.format(num)
         self.write_json_command(rel_number, onoff)
         	
+    def read_status_string(self):
+        """Read device status as a string"""
+
+        self.write_json_command("STATUS", 1)
+        return self.readline_string()
+        
     def read_status(self):
         self.write_json_command("STATUS", 1)
         return self.readline_json()
