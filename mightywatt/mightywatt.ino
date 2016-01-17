@@ -595,7 +595,7 @@ unsigned int readADC12bit(int channel) // oversamples ADC to 12 bit (AVR) or ave
     analogResult += analogRead(channel);
   }
   #ifdef AVR
-    return (analogResult >> 2);
+    return (analogResult >> 2) >> 1; // TODO: See why another shift is required
   #endif
   #ifdef ARM
     return (analogResult >> 4);
