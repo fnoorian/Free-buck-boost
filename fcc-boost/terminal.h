@@ -40,16 +40,16 @@ void print_data_json(void) {
   print_int100_dec2((long)power_status.pwm_duty * 10000 / (PWM_FULL - 1));
 
   Serial.print(", \"volts_in\": ");
-  print_int100_dec2(power_status.sol_volts);
+  print_int100_dec2(power_status.in_volts);
 
   Serial.print(", \"volts_out\": ");
-  print_int100_dec2(power_status.bat_volts);
+  print_int100_dec2(power_status.out_volts);
 
   Serial.print(", \"amps_in\": ");
-  print_int100_dec2(power_status.sol_amps);
+  print_int100_dec2(power_status.in_amps);
 
   Serial.print(", \"watts_in\": ");
-  print_int100_dec2(power_status.sol_watts);
+  print_int100_dec2(power_status.in_watts);
 
   Serial.println("}");
 }

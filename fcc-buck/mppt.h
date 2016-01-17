@@ -15,12 +15,12 @@
 //------------------------------------------------------------------------------------------------------
 void MPPT_PWM_Adjust(void) {
   
-  static int old_sol_watts = 0;
+  static int old_in_watts = 0;
   static int delta =  PWM_MPPT_INC;         // variable used to modify pwm duty cycle for the ppt algorithm
 
-  int sol_watts = power_status.sol_watts;
+  int in_watts = power_status.in_watts;
 
-  if (old_sol_watts >= sol_watts) {         // if previous watts are greater change the value of
+  if (old_in_watts >= in_watts) {           // if previous watts are greater change the value of
     delta = -delta;                         // delta to make pwm increase or decrease to maximize watts
   }
   
@@ -30,7 +30,7 @@ void MPPT_PWM_Adjust(void) {
     pwm = PWM_MPPT_MIN;
   }
 
-  old_sol_watts = sol_watts;                // load old_watts with current watts value for next time
+  old_in_watts = in_watts;                // load old_watts with current watts value for next time
   set_pwm_duty(pwm);                        // set pwm duty cycle to pwm value
 }
 
@@ -61,13 +61,13 @@ void MPPT_state_machine(void) {
 
   static int off_count = MPPT_OFF_COUNT;       // Off counter
 
-  int sol_watts = power_status.sol_watts;
-  int bat_volts = power_status.bat_volts;
-  int sol_volts = power_status.sol_volts;
+  int in_watts = power_status.in_watts;
+  int sol_volts = power_status.in_volts;
+  int bat_volts = power_status.out_volts;
   
   switch (power_status.mode) {
     case MODE_MPPT_ON:
-      if (sol_watts < MIN_SOL_WATTS) {         //if watts input from the solar panel is less than
+      if (in_watts < MIN_SOL_WATTS) {         //if watts input from the solar panel is less than
         power_status.mode = MODE_MPPT_OFF;     //the minimum solar watts then it is getting dark so
         off_count = MPPT_OFF_COUNT;                   //go to the charger off state
         TURN_OFF_MOSFETS; 

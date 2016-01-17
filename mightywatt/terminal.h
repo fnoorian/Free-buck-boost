@@ -54,10 +54,10 @@ void sendMessage(byte command) // procedure called when there is a send (read fr
       print_mili_values(current);
       Serial.print(", \"voltage\": ");
       print_mili_values(voltage);
+      Serial.print(", \"power\": ");
+      print_mili_values(power);
       Serial.print(", \"temperature\": ");
       Serial.print(temperature);
-      Serial.print(", \"remoteStatus\": ");
-      Serial.print(remoteStatus);
 
       Serial.print(", \"loadStatus\": [");
 

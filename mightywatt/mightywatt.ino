@@ -52,7 +52,6 @@ const int VDAC1_INTERCEPT = -22;
 
 // <Serial>
 byte commandByte; // first byte of TX/RX data
-byte serialData[7]; // data TX/RX
 const unsigned int SERIAL_TIMEOUT = 10000; // approx. 40 milliseconds for receiving all the data
 // commands
 const byte QDC = 30; // query device capabilities

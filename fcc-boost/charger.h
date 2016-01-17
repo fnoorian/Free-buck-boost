@@ -28,8 +28,8 @@ void Charger_switch_mode(const charger_mode_t & mode) {
 void Charger_State_Machine(void) {
 
   // Get the voltage and current going to the battery
-  int batt_voltage = power_status.bat_volts;
-  int batt_curr = power_status.sol_watts / batt_voltage;
+  int batt_voltage = power_status.out_volts;
+  int batt_curr = power_status.in_watts / batt_voltage;
 
   switch (power_status.mode) {
     case MODE_BATT_OFF:
