@@ -1,7 +1,7 @@
-#define BATTERY_MAX_CHARGE_CURRENT        1            // Battery Max charging rate
-#define BATTERY_TO_OFF_CHARGE_CURRENT     1            // Battery current to turn off charging
-#define BATTERY_FLOAT_VOLTAGE             1            // Battery Float voltage
-#define BATTERY_FLOAT_CHARGE_VOLTAGE      1            // Battery voltage to charge at float mode
+#define BATTERY_MAX_CHARGE_CURRENT        3500            // Battery Max charging rate (3.5 A)
+#define BATTERY_TO_OFF_CHARGE_CURRENT     0075            // Battery current to turn off charging (0.75 A)
+#define BATTERY_FLOAT_VOLTAGE             1300            // Battery Float voltage (13.0 V)
+#define BATTERY_FLOAT_CHARGE_VOLTAGE      1380            // Battery voltage to charge at float mode (13.8 V)
 
 void Charger_switch_mode(const charger_mode_t & mode) {
   switch (mode) {

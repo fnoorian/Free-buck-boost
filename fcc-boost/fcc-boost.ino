@@ -28,10 +28,9 @@
 #define ADC_OUT_VOLTS_CHAN  2             // the adc channel to read output (battery) volts
 
 #define PWM_FULL            1023          // the actual value used by the Timer1 routines for 100% pwm duty cycle
-#define PWM_MAX             0.5*PWM_FULL  // the value for pwm duty cyle 0-100.0% (Resolution in 
+#define PWM_MAX             0.6*PWM_FULL  // the value for pwm duty cyle 0-100.0%
 #define PWM_MIN             0.01*PWM_FULL // the value for pwm duty cyle 0-100.0%
-#define PWM_START           PWM_MIN       // the value for pwm duty cyle 0-100.0%
-#define PWM_INC             4             // the value the increment to the pwm value for the ppt algorithm
+#define PWM_START           PWM_MIN  // the value for pwm duty cyle 0-100.0%
 
 #define IN_AMPS_SCALE       0.5           // the scaling value for raw adc reading to get input (solar) amps scaled by 100 [(1/(0.005*(3.3k/25))*(5/1023)*100]
 #define IN_VOLTS_SCALE      2.7           // the scaling value for raw adc reading to get input (solar) volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
