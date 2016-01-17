@@ -39,6 +39,7 @@
 #define OUT_VOLTS_SCALE     2.7           // the scaling value for raw adc reading to get output (battery) volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
 
 #define ONE_SECOND          50000         // count for number of interrupt in 1 second on interrupt period of 20us
+#define STATE_MACHINE_SKIPS 32            // State machine skip counter, gives some time to the voltage LPF to adapt to 
 
 #define BUFF_MAX            32            // Maximum buffer size for receiving from serial
 
@@ -178,6 +179,7 @@ void state_switch(const charger_mode_t & mode, int target = 0) {
     case MODE_OFF:
       TURN_OFF_MOSFETS;
       power_status.mode = mode;
+      set_pwm_duty(PWM_START); // set pwm value to something safe
       break;
       
     case MODE_CONST_VOLT:
@@ -203,6 +205,7 @@ void state_switch(const charger_mode_t & mode, int target = 0) {
     case MODE_MPPT_OFF:
       TURN_OFF_MOSFETS;
       power_status.mode = mode;
+      set_pwm_duty(PWM_START); // set pwm value to something safe
       break;
 
     default:
@@ -214,6 +217,14 @@ void state_switch(const charger_mode_t & mode, int target = 0) {
 // The program State Machine, called from the main loop
 //------------------------------------------------------------------------------------------------------
 void state_machine(void) {
+
+  // Skip adjusting pwm, to let time for the ADC LPF to catchup
+  static unsigned int skip_counter = 0;
+  skip_counter++;
+  if (skip_counter < STATE_MACHINE_SKIPS) return;
+  skip_counter = 0;
+
+  // adjust pwm based on current mode
   switch (power_status.mode) {
     case MODE_CONST_VOLT:
       adjust_pwm(power_status.target - power_status.out_volts);
@@ -242,6 +253,7 @@ void state_machine(void) {
 #include "terminal.h"
 
 //------------------------------------------------------------------------------------------------------
+// Setup function
 // This routine is automatically called at powerup/reset
 //------------------------------------------------------------------------------------------------------
 void setup()                               // run once, when the sketch starts
@@ -253,14 +265,12 @@ void setup()                               // run once, when the sketch starts
   Timer1.attachInterrupt(timer_callback);  // attaches timer_callback() as a timer overflow interrupt
 
   pinMode(PWM_ENABLE_PIN, OUTPUT);         // sets the digital pin as output
-  TURN_OFF_MOSFETS;                        // turn on MOSFET driver chip
-  set_pwm_duty(PWM_START);
+
+  state_switch(MODE_OFF);                  // start with charger state as off
 
   lpf_in_volts.Init();                     // initialize ADC low-pass filters
   lpf_out_volts.Init();
   lpf_in_amps.Init();
-
-  state_switch(MODE_OFF);                     // start with charger state as off
 
   print_identity();
 }

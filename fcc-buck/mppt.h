@@ -53,12 +53,6 @@ void MPPT_PWM_Adjust(void) {
 
 void MPPT_state_machine(void) {
 
-  // MPPT Skip: only run every MPPT_SKIP_COUNT
-  static unsigned int mppt_skip_counter = 0;
-  mppt_skip_counter++;
-  if (mppt_skip_counter < MPPT_SKIP_COUNT) return;
-  mppt_skip_counter = 0;
-
   static int off_count = MPPT_OFF_COUNT;       // Off counter
 
   int in_watts = power_status.in_watts;
