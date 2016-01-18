@@ -42,8 +42,8 @@ const byte DAC_WRITE_DAC_AND_INPUT_REGISTERS = 0b00110000; // write to DAC memor
 //  value
 unsigned int dac = 0;
 //  calibration
-const unsigned int IDAC_SLOPE = 10122;
-const int IDAC_INTERCEPT = -19;
+const unsigned int IDAC_SLOPE = 11522 / 2;
+const int IDAC_INTERCEPT = -17;
 const unsigned int VDAC0_SLOPE = 31445;
 const int VDAC0_INTERCEPT = -25;
 const unsigned int VDAC1_SLOPE = 5426;
@@ -87,9 +87,9 @@ byte vRange = 0; // 0 = gain 1, 1 = gain 5.7
 //  hysteresis
 unsigned int voltageRangeDown; // switch gain when going under
 // calibration constants
-const unsigned int VADC0_SLOPE = 31614;
+const unsigned int VADC0_SLOPE = 32084;
 const unsigned int VADC1_SLOPE = 5446;
-const int VADC0_INTERCEPT = 58;
+const int VADC0_INTERCEPT = 140;
 const int VADC1_INTERCEPT = -2;
 // serial communication
 byte remoteStatus = 0; // 0 = local, 1 = remote
@@ -99,8 +99,8 @@ const byte REMOTE_ID = 4;
 // <Ammeter>
 unsigned int current = 0;
 //  calibration constants
-const unsigned int IADC_SLOPE = 10134;
-const char IADC_INTERCEPT = 26;
+const unsigned int IADC_SLOPE = 11400;
+const char IADC_INTERCEPT = 5;
 // </Ammeter>
 
 // <Status>
@@ -545,6 +545,9 @@ void setRemote(byte value)
 
 void setVrange(byte newRange)
 {  
+  // Disable Variable raning
+  return;
+   
   vRange = newRange; 
   if (newRange == 0)
   {

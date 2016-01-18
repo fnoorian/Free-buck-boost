@@ -26,7 +26,7 @@ class MightyWattDriver(FCCSerialDriver):
         self.write_json_command("V", round(v * 1000))
         
     def set_resistance(self, r):
-        """Set load resistance in volts"""
+        """Set load resistance in ohms"""
 
         self.write_json_command("R", round(r * 1000))
 
@@ -45,7 +45,7 @@ class MightyWattDriver(FCCSerialDriver):
 
 def MightyWattDriver_Test():
     drv = MightyWattDriver()
-    drv.open_serial('SNR=95238343234351A00181')
+    drv.open_serial('SNR=854303535313513041E2')
     print(drv.dev_id)
 
     print(drv.get_identity())

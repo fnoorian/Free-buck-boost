@@ -34,16 +34,17 @@
 
 // MPPT configuration is in mppt.h
 
-#define IN_AMPS_SCALE       0.5           // the scaling value for raw adc reading to get input (solar) amps scaled by 100 [(1/(0.005*(3.3k/25))*(5/1023)*100]
-#define IN_VOLTS_SCALE      2.7           // the scaling value for raw adc reading to get input (solar) volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
-#define OUT_VOLTS_SCALE     2.7           // the scaling value for raw adc reading to get output (battery) volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
+// Use these to calibrate the ADC
+#define IN_AMPS_SCALE       0.54          // the scaling value for raw adc reading to get input (solar) amps scaled by 100 [(1/(0.005*(3.3k/25))*(5/1023)*100]
+#define IN_VOLTS_SCALE      2.63          // the scaling value for raw adc reading to get input (solar) volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
+#define OUT_VOLTS_SCALE     2.60          // the scaling value for raw adc reading to get output (battery) volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
 
 #define ONE_SECOND          50000         // count for number of interrupt in 1 second on interrupt period of 20us
-#define STATE_MACHINE_SKIPS 32            // State machine skip counter, gives some time to the voltage LPF to adapt to 
+#define STATE_MACHINE_SKIPS 16            // State machine skip counter, gives some time to the voltage LPF to adapt to 
 
 #define BUFF_MAX            32            // Maximum buffer size for receiving from serial
 
-typedef LowPassBuffer<16, unsigned int> LPF; // Low pass filter uses a moving average window of 16 samples
+typedef LowPassBuffer<32, unsigned int> LPF; // Low pass filter uses a moving average window of 16 samples
 //------------------------------------------------------------------------------------------------------
 // global variables
 
@@ -156,7 +157,7 @@ void adjust_pwm(int target_difference) {
   int current_pwm = power_status.pwm_duty;
 
   // proportional delta control
-  int pwm_delta = 1 + (abs(target_difference) / 25);
+  int pwm_delta = 1 + (abs(target_difference) / 8);
   
   // adjust pwm either up or down based on difference sign
   if (target_difference < 0) {
@@ -185,9 +186,9 @@ void state_switch(const charger_mode_t & mode, int target = 0) {
     case MODE_CONST_VOLT:
     case MODE_CONST_CURRENT:
     case MODE_CONST_POWER:
-      TURN_ON_MOSFETS;
       power_status.mode = mode;
       power_status.target = target;
+      TURN_ON_MOSFETS;
       break;
 
     case MODE_CONST_DUTY:
@@ -198,8 +199,8 @@ void state_switch(const charger_mode_t & mode, int target = 0) {
       break;
 
     case MODE_MPPT_ON:
-      TURN_ON_MOSFETS;
       power_status.mode = mode;
+      TURN_ON_MOSFETS;
       break;
 
     case MODE_MPPT_OFF:
