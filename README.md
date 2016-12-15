@@ -35,10 +35,10 @@ available from
 - mightywatt/  Firmware for an Arduino based MightyWatt shield.
 
 ## License
-Copyright (c) 2015, Farzad Noorian <farzad.noorian@gmail.com>. \
-Copyright (c) 2015, Yousif Amjad Solaiman <https://github.com/youirepo/Free-buck-boost>. \
-Copyright (c) 2015, Jakub Polonský <http://kaktuscircuits.blogspot.cz/2015/03/mightywatt-resource-page.html>. \
-Copyright (c) 2009, Tim Nolan <http://www.timnolan.com/>.
+ * Copyright (c) 2015, Farzad Noorian <farzad.noorian@gmail.com>.
+ * Copyright (c) 2015, Yousif Amjad Solaiman <https://github.com/youirepo/Free-buck-boost>.
+ * Copyright (c) 2015, Jakub Polonský <http://kaktuscircuits.blogspot.cz/2015/03/mightywatt-resource-page.html>.
+ * Copyright (c) 2009, Tim Nolan <http://www.timnolan.com/>.
 
 The MightyWatt firmware, originally by Jakub Polonský, is licensed under 
 Creative Commons Attribution-ShareAlike 4.0 International License.
