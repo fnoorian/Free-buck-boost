@@ -4,9 +4,9 @@
 #define PWM_MPPT_MIN        0.5*PWM_FULL  // the min value for pwm duty cyle 0-100.0% in MPPT mode
 #define PWM_MPPT_START      0.7*PWM_FULL  // the starting value for MPPT mode pwm duty cyle 0-100.0%
 
-#define PWM_MPPT_INC        16             // the value the increment to the pwm value for the ppt algorithm
-#define MIN_SOL_WATTS       100           // value of solar watts scaled by 100 so this is 0.50 watts
-#define MIN_SOL_VOLTS       1200          // The minimum voltage of the solar panel to keep MPPT on
+#define PWM_MPPT_INC        16            // the value the increment to the pwm value for the ppt algorithm
+#define MIN_SOL_WATTS       100           // Minimum power from solar to keep MPPT on (1 Watt)
+#define MIN_SOL_VOLTS       1200          // The minimum voltage of the solar panel to keep MPPT on (12 V)
 #define MPPT_SKIP_COUNT     32            // number of iterations to skip updating MPPT state machine
 #define MPPT_OFF_COUNT      32            // number of iterations of off charger state
 
