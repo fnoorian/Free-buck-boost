@@ -32,6 +32,15 @@ void print_data(void) {
   else if (power_status.mode == MODE_CONST_POWER)    Serial.print("watt   ");
   else if (power_status.mode == MODE_CONST_DUTY)     Serial.print("duty   ");
 
+  Serial.print("  limit = ");
+  switch(power_status.safety_limit_status) {
+    case LIMIT_DISABLED:      Serial.print("off    "); break;
+    case LIMIT_NORMAL:        Serial.print("normal "); break;
+    case LIMIT_VOLTAGE:       Serial.print("voltage"); break;
+    case LIMIT_CURRENT:       Serial.print("current"); break;
+    case LIMIT_POWER:         Serial.print("power  "); break;
+  }
+
   Serial.print("  target = ");
   print_int100_dec2(power_status.target);
   
@@ -58,13 +67,24 @@ void print_data_json(void) {
   Serial.print(g_seconds, DEC);
 
   Serial.print(", \"state\": ");
-  if (power_status.mode == MODE_OFF)                 Serial.print("\"off\",    ");
-  else if (power_status.mode == MODE_MPPT_ON)        Serial.print("\"mppton\", ");
-  else if (power_status.mode == MODE_MPPT_OFF)       Serial.print("\"mpptoff\",");
-  else if (power_status.mode == MODE_CONST_VOLT)     Serial.print("\"volt\",   ");
-  else if (power_status.mode == MODE_CONST_CURRENT)  Serial.print("\"amps\",   ");
-  else if (power_status.mode == MODE_CONST_POWER)    Serial.print("\"watt\",   ");
-  else if (power_status.mode == MODE_CONST_DUTY)     Serial.print("\"duty\",   ");
+  switch(power_status.mode) {
+    case MODE_OFF:            Serial.print("\"off\",    "); break;
+    case MODE_MPPT_ON:        Serial.print("\"mppton\", "); break;
+    case MODE_MPPT_OFF:       Serial.print("\"mpptoff\","); break;
+    case MODE_CONST_VOLT:     Serial.print("\"volt\",   "); break;
+    case MODE_CONST_CURRENT:  Serial.print("\"amps\",   "); break;
+    case MODE_CONST_POWER:    Serial.print("\"watt\",   "); break;
+    case MODE_CONST_DUTY:     Serial.print("\"duty\",   "); break;
+  }
+
+  Serial.print(", \"limit\": ");
+  switch(power_status.safety_limit_status) {
+    case LIMIT_DISABLED:      Serial.print("\"off\",    "); break;
+    case LIMIT_NORMAL:        Serial.print("\"normal\", "); break;
+    case LIMIT_VOLTAGE:       Serial.print("\"voltage\","); break;
+    case LIMIT_CURRENT:       Serial.print("\"current\","); break;
+    case LIMIT_POWER:         Serial.print("\"power\",  "); break;
+  }
 
   Serial.print(" \"target\": ");
   print_int100_dec2(power_status.target);
@@ -126,6 +146,9 @@ void serve_command(const char * in_buff) {
   }
   else if(!stricmp(cmd, "STATUS") && val) {
     print_data_json();
+  }
+  else if(!stricmp(cmd, "LIMIT")) {
+    safety_limit_enable(val);
   }
   else if(!stricmp(cmd, "IDN") && val) {
     print_identity();

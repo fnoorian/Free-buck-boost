@@ -42,9 +42,12 @@
 #define ONE_SECOND          50000         // count for number of interrupt in 1 second on interrupt period of 20us
 #define STATE_MACHINE_SKIPS 16            // State machine skip counter, gives some time to the voltage LPF to adapt to 
 
+#define MAX_IN_CURRENT      300           // Maximum input current to enable safety limit (3 A)
+#define MAX_IN_POWER        1500          // Maximum input current to enable safety limit (15 watts)
+
 #define BUFF_MAX            32            // Maximum buffer size for receiving from serial
 
-typedef LowPassBuffer<32, unsigned int> LPF; // Low pass filter uses a moving average window of 16 samples
+typedef LowPassBuffer<32, unsigned int> LPF; // Low pass filter uses a moving average window of 32 samples
 //------------------------------------------------------------------------------------------------------
 // global variables
 
@@ -58,14 +61,25 @@ enum charger_mode_t {MODE_OFF,            // The system is off
                      MODE_CONST_DUTY      // Constant duty cycle mode
                     };
 
+enum safety_error_t { LIMIT_DISABLED,     // Safety system in disabled
+                      LIMIT_NORMAL,       // Safety system in normal mode
+                      LIMIT_VOLTAGE,      // Over-voltage detected
+                      LIMIT_CURRENT,      // Over-current detected
+                      LIMIT_POWER         // Over-power detected
+                    };
+
 struct system_states_t {
    int in_amps;                          // input (solar) amps in 10 mV (scaled by 100)
    int in_volts;                         // input (solar) volts in 10 mV (scaled by 100)
    int out_volts;                        // output (battery) volts in 10 mV (scaled by 100)
    int in_watts;                         // input (solar) watts in 10 mV (scaled by 100)
+
    uint16_t pwm_duty;                    // pwm target duty cycle, set by set_pwm_duty function
-   int target;                           // voltage or power target
+   int target;                           // voltage, current or power target
    charger_mode_t mode;                  // state of the charge state machine
+
+   safety_error_t safety_limit_status;   // Safety limit status
+   bool safety_limit_enabled;            // Safety limit enabled flag
 } power_status;
 
 unsigned int g_seconds = 0;             // seconds from timer routine
@@ -135,16 +149,11 @@ void set_pwm_duty(int pwm) {
     Timer1.pwm(PWM_PIN, pwm, 20);                           // use Timer1 routine to set pwm duty cycle at 20uS period
     //Timer1.pwm(PWM_PIN,(PWM_FULL * (long)pwm / 100));
   }												
-  else if (pwm == PWM_MAX) {				                      // if pwm set to 100% it will be on full but we have 
+  else if (pwm == PWM_MAX) {                              // if pwm set to 100% it will be on full but we have 
     Timer1.pwm(PWM_PIN,(PWM_FULL - 1), 1000);             // keep switching so set duty cycle at 99.9% and slow down to 1000uS period 
     //Timer1.pwm(PWM_PIN,(PWM_FULL - 1));              
   }												
-}		
-
-//------------------------------------------------------------------------------------------------------
-// MPPT Algorithm
-//------------------------------------------------------------------------------------------------------
-#include "mppt.h"
+}
 
 //------------------------------------------------------------------------------------------------------
 // PWM Adjustments for constant voltage and constant power modes.
@@ -168,6 +177,46 @@ void adjust_pwm(int target_difference) {
   
   set_pwm_duty(current_pwm);
 }
+
+//------------------------------------------------------------------------------------------------------
+// Safety limit enable/disable
+// enable: true to enable safety limit mode, false to disable
+//------------------------------------------------------------------------------------------------------
+void safety_limit_enable(bool enable) {
+  power_status.safety_limit_enabled = enable;      
+
+  if (enable) {
+    power_status.safety_limit_status = LIMIT_NORMAL;     // Safety limit no error
+  } else {
+    power_status.safety_limit_status = LIMIT_DISABLED;
+  }
+}
+
+//------------------------------------------------------------------------------------------------------
+// Safety limit handler
+// Adjusts PWM to remain under the current and power limits
+// returns: safety_error_t if anything has happened
+//------------------------------------------------------------------------------------------------------
+safety_error_t  safety_limit_pwm() {
+
+    if (power_status.in_amps > MAX_IN_CURRENT) {
+        adjust_pwm(MAX_IN_CURRENT - power_status.in_amps);
+        return LIMIT_CURRENT;
+    }
+
+    if (power_status.in_watts > MAX_IN_POWER) {
+        adjust_pwm(MAX_IN_POWER - power_status.in_watts);
+        return LIMIT_POWER;
+    }
+
+    // no limits
+    return LIMIT_NORMAL;
+}
+
+//------------------------------------------------------------------------------------------------------
+// MPPT Algorithm
+//------------------------------------------------------------------------------------------------------
+#include "mppt.h"
 
 //------------------------------------------------------------------------------------------------------
 // Switch state to the mode, to reach the given target
@@ -219,6 +268,15 @@ void state_switch(const charger_mode_t & mode, int target = 0) {
 //------------------------------------------------------------------------------------------------------
 void state_machine(void) {
 
+  // If safety mode is enabled, check and adjust PWM
+  if (power_status.safety_limit_enabled) {
+    power_status.safety_limit_status = safety_limit_pwm();
+
+    if (power_status.safety_limit_status != LIMIT_NORMAL) {  // Do nothing else if over the limit
+      return;
+    }
+  }
+
   // Skip adjusting pwm, to let time for the ADC LPF to catchup
   static unsigned int skip_counter = 0;
   skip_counter++;
@@ -268,6 +326,8 @@ void setup()                               // run once, when the sketch starts
   pinMode(PWM_ENABLE_PIN, OUTPUT);         // sets the digital pin as output
 
   state_switch(MODE_OFF);                  // start with charger state as off
+
+  safety_limit_enable(true);               // Safety limit error
 
   lpf_in_volts.Init();                     // initialize ADC low-pass filters
   lpf_out_volts.Init();

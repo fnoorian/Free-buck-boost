@@ -32,6 +32,7 @@
 #define PWM_MIN             0.01*PWM_FULL // the value for pwm duty cyle 0-100.0%
 #define PWM_START           PWM_MIN  // the value for pwm duty cyle 0-100.0%
 
+// Use these to calibrate the ADC
 #define IN_AMPS_SCALE       0.5           // the scaling value for raw adc reading to get input (solar) amps scaled by 100 [(1/(0.005*(3.3k/25))*(5/1023)*100]
 #define IN_VOLTS_SCALE      2.7           // the scaling value for raw adc reading to get input (solar) volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
 #define OUT_VOLTS_SCALE     2.7           // the scaling value for raw adc reading to get output (battery) volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
@@ -62,8 +63,9 @@ struct system_states_t {
    int in_volts;                         // input (solar) volts in 10 mV (scaled by 100)
    int out_volts;                        // output (battery) volts in 10 mV (scaled by 100)
    int in_watts;                         // input (solar) watts in 10 mV (scaled by 100)
+
    uint16_t pwm_duty;                    // pwm target duty cycle, set by set_pwm_duty function
-   int target;                           // voltage or power target
+   int target;                           // voltage, current or power target
    charger_mode_t mode;                  // state of the charge state machine
 } power_status;
 
@@ -104,11 +106,6 @@ void read_data(void) {
   power_status.in_volts = IN_VOLTS_SCALE * lpf_in_volts.GetAverage();
   power_status.out_volts = OUT_VOLTS_SCALE * lpf_out_volts.GetAverage();
   power_status.in_watts = (int)((((long)power_status.in_amps * (long)power_status.in_volts) + 50) / 100);    //calculations of solar watts scaled by 10000 divide by 100 to get scaled by 100                 
-
-  // power_status.in_amps =  IN_AMPS_SCALE * read_adc(ADC_IN_AMPS_CHAN) ;// * read_adc(ADC_SOL_AMPS_CHAN); //((read_adc(ADC_SOL_AMPS_CHAN)  * SOL_AMPS_SCALE) + 5) / 10;    //input of solar amps result scaled by 100
-  // power_status.in_volts = IN_VOLTS_SCALE * read_adc(ADC_IN_VOLTS_CHAN); //((read_adc(ADC_SOL_VOLTS_CHAN) * IN_VOLTS_SCALE) + 5) / 10;   //input of solar volts result scaled by 100
-  // power_status.out_volts = OUT_VOLTS_SCALE * read_adc(ADC_OUT_VOLTS_CHAN); // ((read_adc(ADC_BAT_VOLTS_CHAN) * OUT_VOLTS_SCALE) + 5) / 10;   //input of battery volts result scaled by 100
-  // power_status.in_watts = (int)((((long)power_status.in_amps * (long)power_status.in_volts) + 50) / 100);    //calculations of solar watts scaled by 10000 divide by 100 to get scaled by 100                 
 }
 //------------------------------------------------------------------------------------------------------
 // This routine uses the Timer1.pwm function to set the pwm duty cycle. The routine takes the value in
@@ -131,14 +128,14 @@ void set_pwm_duty(int pwm) {
   power_status.pwm_duty = pwm;                             // store this value in the status
   
   if (pwm < PWM_MAX) {
-    Timer1.pwm(PWM_PIN, PWM_FULL - pwm, 20); // use Timer1 routine to set pwm duty cycle at 20uS period
+    Timer1.pwm(PWM_PIN, PWM_FULL - pwm, 20);  // use Timer1 routine to set pwm duty cycle at 20uS period
     //Timer1.pwm(PWM_PIN,(PWM_FULL * (long)pwm / 100));
   }												
-  else if (pwm == PWM_MAX) {				  // if pwm set to 100% it will be on full but we have 
+  else if (pwm == PWM_MAX) {                  // if pwm set to 100% it will be on full but we have 
     Timer1.pwm(PWM_PIN, 4, 1000);             // keep switching so set duty cycle at 99.9% and slow down to 1000uS period 
     //Timer1.pwm(PWM_PIN,(PWM_FULL - 1));              
   }												
-}	
+}
 
 //------------------------------------------------------------------------------------------------------
 // PWM Adjustments for constant voltage and constant power modes.
@@ -179,15 +176,15 @@ void state_switch(const charger_mode_t & mode, int target = 0) {
     case MODE_OFF:
       TURN_OFF_MOSFETS;
       power_status.mode = mode;
-      set_pwm_duty(PWM_START); // set PWM to something safe
+      set_pwm_duty(PWM_START); // set pwm value to something safe
       break;
       
     case MODE_CONST_VOLT:
     case MODE_CONST_CURRENT:
     case MODE_CONST_POWER:
-      TURN_ON_MOSFETS;
       power_status.mode = mode;
       power_status.target = target;
+      TURN_ON_MOSFETS;
       break;
 
     case MODE_CONST_DUTY:
@@ -252,18 +249,17 @@ void state_machine(void) {
 // Setup function
 // This routine is automatically called at powerup/reset
 //------------------------------------------------------------------------------------------------------
-
-void setup()                            // run once, when the sketch starts
+void setup()                               // run once, when the sketch starts
 {
-  Serial.begin(115200);                   // open the serial port at 115200 bps
+  Serial.begin(115200);                    // open the serial port at 115200 bps
 
-  Timer1.initialize(20);                  // initialize timer1, and set a 20uS period
-  Timer1.pwm(PWM_PIN, 0);                 // setup pwm on pin 9, 0% duty cycle
-  Timer1.attachInterrupt(timer_callback); // attaches timer_callback() as a timer overflow interrupt
+  Timer1.initialize(20);                   // initialize timer1, and set a 20uS period
+  Timer1.pwm(PWM_PIN, 0);                  // setup pwm on pin 9, 0% duty cycle
+  Timer1.attachInterrupt(timer_callback);  // attaches timer_callback() as a timer overflow interrupt
 
-  pinMode(PWM_ENABLE_PIN, OUTPUT);        // sets the digital pin as output
+  pinMode(PWM_ENABLE_PIN, OUTPUT);         // sets the digital pin as output
 
-  state_switch(MODE_OFF);                     // start with charger state as off
+  state_switch(MODE_OFF);                  // start with charger state as off
 
   lpf_in_volts.Init();                     // initialize ADC low-pass filters
   lpf_out_volts.Init();
