@@ -45,7 +45,7 @@ class MightyWattDriver(FCCSerialDriver):
 
 def MightyWattDriver_Test():
     drv = MightyWattDriver()
-    drv.open_serial('SNR=854303535313513041E2')
+    drv.open_serial(u'854303535313513041E2')
     print(drv.dev_id)
 
     print(drv.get_identity())

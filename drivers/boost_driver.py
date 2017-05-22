@@ -56,7 +56,7 @@ class FCCChargerDriver(FCCBoostDriver):
         
 def FCCBoostDriver_test():
     drv = FCCBoostDriver()
-    drv.open_serial('SNR=95238343234351A00181')
+    drv.open_serial(u'95238343234351A00181')
     print(drv.dev_id)
 
     print(drv.get_identity())

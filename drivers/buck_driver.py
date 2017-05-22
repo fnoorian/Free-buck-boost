@@ -54,7 +54,7 @@ class FCCMPPTDriver(FCCBuckDriver):
 
 def FCCBuck_Test():
     drv = FCCMPPTDriver()
-    drv.open_serial('SNR=8543035353135160A201')
+    drv.open_serial(u'8543035353135160A201')
     print(drv.dev_id)
 
     print(drv.get_identity())

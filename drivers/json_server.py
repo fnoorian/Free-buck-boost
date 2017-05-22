@@ -29,10 +29,10 @@ def application(request):
 
 if __name__ == '__main__':
 
-    mightywatt = MightyWattDriver('SNR=8533434373835120D1C2')
-    charger = FCCBoostDriver('SNR=75439333635351719221')
-    discharger = FCCBuckDriver('SNR=75439333635351712071')
-    mppt = FCCMPPTDriver('SNR=75439333635351918140')
+    mightywatt = MightyWattDriver(u'8533434373835120D1C2')
+    charger = FCCBoostDriver(u'75439333635351719221')
+    discharger = FCCBuckDriver(u'75439333635351712071')
+    mppt = FCCMPPTDriver(u'75439333635351918140')
     
     #run_simple('localhost', 4000, application)
     run_simple('0.0.0.0', 4002, application)
