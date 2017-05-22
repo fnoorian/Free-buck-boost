@@ -33,7 +33,7 @@ void print_data_json(void) {
   else if (power_status.mode == MODE_BATT_BULK)      Serial.print("\"batt_bulk\", ");
   else if (power_status.mode == MODE_BATT_FLOAT)     Serial.print("\"batt_flt\",  ");
 
-  Serial.print(", \"limit\": ");
+  Serial.print(" \"limit\": ");
   switch(power_status.safety_limit_status) {
     case LIMIT_DISABLED:      Serial.print("\"off\",    "); break;
     case LIMIT_NORMAL:        Serial.print("\"normal\", "); break;

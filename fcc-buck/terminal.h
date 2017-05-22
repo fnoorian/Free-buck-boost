@@ -78,7 +78,7 @@ void print_data_json(void) {
     case MODE_CONST_DUTY:     Serial.print("\"duty\",   "); break;
   }
 
-  Serial.print(", \"limit\": ");
+  Serial.print(" \"limit\": ");
   switch(power_status.safety_limit_status) {
     case LIMIT_DISABLED:      Serial.print("\"off\",    "); break;
     case LIMIT_NORMAL:        Serial.print("\"normal\", "); break;
