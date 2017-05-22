@@ -32,6 +32,7 @@ class FCCSerialDriver:
         """Open device based on port name"""
 
         self.serial = serial.Serial(port_name, baud)
+        self.serial.open()
         self.dev_id = self.readline_json()
 
     def open_serial(self, sn, baud=115200):
