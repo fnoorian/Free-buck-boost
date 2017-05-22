@@ -138,7 +138,7 @@ void serve_command(const char * in_buff)
 //------------------------------------------------------------------------------------------------------
 void serialMonitor() {
 
-  if (Serial.available() > 0)  
+  if (Serial.available() > 6)  // Minimum command len: "{"X":0}"
   {
     // read a byte
     int c = Serial.read();
