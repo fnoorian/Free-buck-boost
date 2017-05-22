@@ -14,8 +14,8 @@ class FCCSerialDriver:
         """Returns the COM port id of a given serial number"""
 
         for p in serial.tools.list_ports.comports():
-            if p[2].endswith(sn):
-                return p[0]
+            if p.serial_number == sn:
+                return p.device
         return None
 
     def __init__(self, sn=None, port_name=None):

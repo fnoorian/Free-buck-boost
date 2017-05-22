@@ -5,17 +5,17 @@ from might_driver import MightyWattDriver
 from buck_driver import FCCBuckDriver
 
 discharger = FCCMPPTDriver()
-discharger.open_serial('SNR=8543035353135160A201')
+discharger.open_serial('8543035353135160A201')
 print(discharger.dev_id)
 
 load = MightyWattDriver()
-load.open_serial('SNR=854303535313513041E2')
+load.open_serial('854303535313513041E2')
 print(load.dev_id)
 
 # set load to something
-load.set_resistance(20) # 20 ohms, at 10 volts would be 5 watts
+load.set_resistance(20) # 20 ohms, at 10 volts would be 0.5 watts
 
-# set buck to give 10 watts of power
+# set buck to give 5 watts of power
 discharger.set_power(5)
 
 # every 250 ms, log the data
