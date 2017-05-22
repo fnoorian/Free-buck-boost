@@ -33,6 +33,15 @@ void print_data_json(void) {
   else if (power_status.mode == MODE_BATT_BULK)      Serial.print("\"batt_bulk\", ");
   else if (power_status.mode == MODE_BATT_FLOAT)     Serial.print("\"batt_flt\",  ");
 
+  Serial.print(", \"limit\": ");
+  switch(power_status.safety_limit_status) {
+    case LIMIT_DISABLED:      Serial.print("\"off\",    "); break;
+    case LIMIT_NORMAL:        Serial.print("\"normal\", "); break;
+    case LIMIT_VOLTAGE:       Serial.print("\"voltage\","); break;
+    case LIMIT_CURRENT:       Serial.print("\"current\","); break;
+    case LIMIT_POWER:         Serial.print("\"power\",  "); break;
+  }
+
   Serial.print(" \"target\": ");
   print_int100_dec2(power_status.target);
 
@@ -64,10 +73,9 @@ void print_identity()
 //------------------------------------------------------------------------------------------------------
 // Parse JSON command and run its command
 //------------------------------------------------------------------------------------------------------
-
 void serve_command(const char * in_buff) {
   /* Variables used for parsing and tokenising */
-  char cmd[BUFF_MAX]; // char string to store the command
+  char cmd[SERIAL_BUFF_MAX]; // char string to store the command
   int val;  // Integer to store value
 
   sscanf(in_buff, "\"%[^\"]\": %d}", cmd, &val); // parse the string
@@ -86,14 +94,17 @@ void serve_command(const char * in_buff) {
   else if(!stricmp(cmd, "PWM")) {
     state_switch(MODE_CONST_DUTY, val);
   }
-  else if(!stricmp(cmd, "OFF") && val) {
-    state_switch(MODE_OFF);
-  }
   else if(!stricmp(cmd, "BATT") && val) {
     state_switch(MODE_BATT_OFF);
   } 
+  else if(!stricmp(cmd, "OFF") && val) {
+    state_switch(MODE_OFF);
+  }
   else if(!stricmp(cmd, "STATUS") && val) {
     print_data_json();
+  }
+  else if(!stricmp(cmd, "LIMIT")) {
+    safety_limit_enable(val);
   }
   else if(!stricmp(cmd, "IDN") && val) {
     print_identity();
@@ -109,11 +120,11 @@ void serve_command(const char * in_buff) {
 // Read commands from the serial port
 //------------------------------------------------------------------------------------------------------
 void serve_serial_command() {
-   // read until reaching '{'
+  // read until reaching '{'
   while (Serial.read() != '{');
 
-  char in_buff[BUFF_MAX]; // Buffer in input
-  int end = Serial.readBytesUntil('}', in_buff, BUFF_MAX); // Read command from serial monitor
+  char in_buff[SERIAL_BUFF_MAX]; // Buffer in input
+  int end = Serial.readBytesUntil('}', in_buff, SERIAL_BUFF_MAX); // Read command from serial monitor
   in_buff[end] = 0; // null terminate the string
 
   serve_command(in_buff);

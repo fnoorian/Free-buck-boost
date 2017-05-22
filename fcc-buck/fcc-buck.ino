@@ -1,5 +1,8 @@
 //------------------------------------------------------------------------------------------------------
+// Buck/MPPT controller
+// Part of Free charge controller project
 //
+// Based on:
 // Arduino Peak Power Tracking Solar Charger     by Tim Nolan (www.timnolan.com)   5/1/09
 //
 //    This software implements my Peak Power Tracking Solar Charger using the Arduino Demilove developement
@@ -9,7 +12,6 @@
 //    Thank you.
 //
 //    5/1/09  v1.00    First development version. Just getting something to work.
-//
 //
 //------------------------------------------------------------------------------------------------------
 
@@ -28,9 +30,9 @@
 #define ADC_OUT_VOLTS_CHAN  2             // the adc channel to read output (battery) volts
 
 #define PWM_FULL            1023          // the actual value used by the Timer1 routines for 100% pwm duty cycle
-#define PWM_MAX             0.9*PWM_FULL  // the max value for pwm duty cyle 0-100.0% (Resolution in 
+#define PWM_MAX             0.9*PWM_FULL  // the max value for pwm duty cyle 0-100.0%
 #define PWM_MIN             0.1*PWM_FULL  // the min value for pwm duty cyle 0-100.0%
-#define PWM_START           0.1*PWM_FULL  // the starting value for pwm duty cyle 0-100.0%
+#define PWM_START           PWM_MIN  // the starting value for pwm duty cyle 0-100.0%
 
 // MPPT configuration is in mppt.h
 
@@ -39,15 +41,18 @@
 #define IN_VOLTS_SCALE      2.63          // the scaling value for raw adc reading to get input (solar) volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
 #define OUT_VOLTS_SCALE     2.60          // the scaling value for raw adc reading to get output (battery) volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
 
-#define ONE_SECOND          50000         // count for number of interrupt in 1 second on interrupt period of 20us
-#define STATE_MACHINE_SKIPS 16            // State machine skip counter, gives some time to the voltage LPF to adapt to 
+// Safety Limits
+#define SAFETY_MAX_IN_CURRENT  300        // Maximum input current to enable safety limit (3 A)
+#define SAFETY_MAX_IN_POWER    1500       // Maximum input current to enable safety limit (15 watts)
 
-#define MAX_IN_CURRENT      300           // Maximum input current to enable safety limit (3 A)
-#define MAX_IN_POWER        1500          // Maximum input current to enable safety limit (15 watts)
+#define SERIAL_BUFF_MAX        32         // Maximum buffer size for receiving from serial
 
-#define BUFF_MAX            32            // Maximum buffer size for receiving from serial
+#define ONE_SECOND             50000      // count for number of interrupt in 1 second on interrupt period of 20us
+#define STATE_MACHINE_SKIPS    16         // State machine skip counter, gives some time to the voltage LPF to adapt to 
 
 typedef LowPassBuffer<32, unsigned int> LPF; // Low pass filter uses a moving average window of 32 samples
+#define PWM_PID_P	       8         // PWM PID filter proportional divisor
+
 //------------------------------------------------------------------------------------------------------
 // global variables
 
@@ -119,11 +124,6 @@ void read_data(void) {
   power_status.in_volts = IN_VOLTS_SCALE * lpf_in_volts.GetAverage();
   power_status.out_volts = OUT_VOLTS_SCALE * lpf_out_volts.GetAverage();
   power_status.in_watts = (int)((((long)power_status.in_amps * (long)power_status.in_volts) + 50) / 100);    //calculations of solar watts scaled by 10000 divide by 100 to get scaled by 100                 
-
-//  power_status.in_amps =  IN_AMPS_SCALE * read_adc(ADC_IN_AMPS_CHAN) ;// * read_adc(ADC_IN_AMPS_CHAN); //((read_adc(ADC_IN_AMPS_CHAN)  * IN_AMPS_SCALE) + 5) / 10;    //input of solar amps result scaled by 100
-//  power_status.in_volts = IN_VOLTS_SCALE * read_adc(ADC_IN_VOLTS_CHAN); //((read_adc(ADC_IN_VOLTS_CHAN) * IN_VOLTS_SCALE) + 5) / 10;   //input of solar volts result scaled by 100
-//  power_status.out_volts = OUT_VOLTS_SCALE * read_adc(ADC_OUT_VOLTS_CHAN); // ((read_adc(ADC_OUT_VOLTS_CHAN) * OUT_VOLTS_SCALE) + 5) / 10;   //input of battery volts result scaled by 100
-//  power_status.in_watts = (int)((((long)power_status.in_amps * (long)power_status.in_volts) + 50) / 100);    //calculations of solar watts scaled by 10000 divide by 100 to get scaled by 100                 
 }
 //------------------------------------------------------------------------------------------------------
 // This routine uses the Timer1.pwm function to set the pwm duty cycle. The routine takes the value in
@@ -166,7 +166,7 @@ void adjust_pwm(int target_difference) {
   int current_pwm = power_status.pwm_duty;
 
   // proportional delta control
-  int pwm_delta = 1 + (abs(target_difference) / 8);
+  int pwm_delta = 1 + (abs(target_difference) / PWM_PID_P);
   
   // adjust pwm either up or down based on difference sign
   if (target_difference < 0) {
@@ -199,13 +199,13 @@ void safety_limit_enable(bool enable) {
 //------------------------------------------------------------------------------------------------------
 safety_error_t  safety_limit_pwm() {
 
-    if (power_status.in_amps > MAX_IN_CURRENT) {
-        adjust_pwm(MAX_IN_CURRENT - power_status.in_amps);
+    if (power_status.in_amps > SAFETY_MAX_IN_CURRENT) {
+        adjust_pwm(SAFETY_MAX_IN_CURRENT - power_status.in_amps);
         return LIMIT_CURRENT;
     }
 
-    if (power_status.in_watts > MAX_IN_POWER) {
-        adjust_pwm(MAX_IN_POWER - power_status.in_watts);
+    if (power_status.in_watts > SAFETY_MAX_IN_POWER) {
+        adjust_pwm(SAFETY_MAX_IN_POWER - power_status.in_watts);
         return LIMIT_POWER;
     }
 
@@ -296,11 +296,10 @@ void state_machine(void) {
       break;
     case MODE_CONST_DUTY:
       break; // nothing to be done in constant duty pwm mode, as duty cycle is already set in "state_switch"
-    case MODE_OFF:
-      break; // do nothing if it is in off mode
     case MODE_MPPT_ON: 
     case MODE_MPPT_OFF:
       MPPT_state_machine(); // call mppt state-machine
+    case MODE_OFF: // do nothing if it is in off mode
     default: // other cases: do nothing
       break;
   }

@@ -1,7 +1,7 @@
 // Collection of functions 
 
 //-----------------------------------------------------------------------------------
-// This function prints int that was scaled by 100 with 2 decimal places
+// Prints int that was scaled by 100 with 2 decimal places
 //-----------------------------------------------------------------------------------
 void print_int100_dec2(int temp) {
 
@@ -15,6 +15,7 @@ void print_int100_dec2(int temp) {
     Serial.print(temp%100,DEC);      // get remainder and print fractional value
   }
 }
+
 //------------------------------------------------------------------------------------------------------
 // This routine prints all the data out to the serial port.
 //------------------------------------------------------------------------------------------------------
@@ -119,7 +120,7 @@ void print_identity()
 //------------------------------------------------------------------------------------------------------
 void serve_command(const char * in_buff) {
   /* Variables used for parsing and tokenising */
-  char cmd[BUFF_MAX]; // char string to store the command
+  char cmd[SERIAL_BUFF_MAX]; // char string to store the command
   int val;  // Integer to store value
 
   sscanf(in_buff, "\"%[^\"]\": %d}", cmd, &val); // parse the string
@@ -167,8 +168,8 @@ void serve_serial_command() {
   // read until reaching '{'
   while (Serial.read() != '{');
 
-  char in_buff[BUFF_MAX]; // Buffer in input
-  int end = Serial.readBytesUntil('}', in_buff, BUFF_MAX); // Read command from serial monitor
+  char in_buff[SERIAL_BUFF_MAX]; // Buffer in input
+  int end = Serial.readBytesUntil('}', in_buff, SERIAL_BUFF_MAX); // Read command from serial monitor
   in_buff[end] = 0; // null terminate the string
 
   serve_command(in_buff);

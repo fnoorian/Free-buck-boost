@@ -1,5 +1,8 @@
 //------------------------------------------------------------------------------------------------------
+// Boost/Battery charger controller
+// Part of Free charge controller project
 //
+// Based on:
 // Arduino Peak Power Tracking Solar Charger     by Tim Nolan (www.timnolan.com)   5/1/09
 //
 //    This software implements my Peak Power Tracking Solar Charger using the Arduino Demilove developement
@@ -9,7 +12,6 @@
 //    Thank you.
 //
 //    5/1/09  v1.00    First development version. Just getting something to work.
-//
 //
 //------------------------------------------------------------------------------------------------------
 
@@ -28,21 +30,28 @@
 #define ADC_OUT_VOLTS_CHAN  2             // the adc channel to read output (battery) volts
 
 #define PWM_FULL            1023          // the actual value used by the Timer1 routines for 100% pwm duty cycle
-#define PWM_MAX             0.6*PWM_FULL  // the value for pwm duty cyle 0-100.0%
-#define PWM_MIN             0.01*PWM_FULL // the value for pwm duty cyle 0-100.0%
-#define PWM_START           PWM_MIN  // the value for pwm duty cyle 0-100.0%
+#define PWM_MAX             0.6*PWM_FULL  // the max value for pwm duty cyle 0-100.0%
+#define PWM_MIN             0.01*PWM_FULL // the min value for pwm duty cyle 0-100.0%
+#define PWM_START           PWM_MIN       // the starting value for pwm duty cyle 0-100.0%
+
+// Battery configuration is in charger.h
 
 // Use these to calibrate the ADC
-#define IN_AMPS_SCALE       0.5           // the scaling value for raw adc reading to get input (solar) amps scaled by 100 [(1/(0.005*(3.3k/25))*(5/1023)*100]
-#define IN_VOLTS_SCALE      2.7           // the scaling value for raw adc reading to get input (solar) volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
-#define OUT_VOLTS_SCALE     2.7           // the scaling value for raw adc reading to get output (battery) volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
+#define IN_AMPS_SCALE       0.5           // the scaling value for raw adc reading to get input (battery) amps scaled by 100 [(1/(0.005*(3.3k/25))*(5/1023)*100]
+#define IN_VOLTS_SCALE      2.7           // the scaling value for raw adc reading to get input (battery) volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
+#define OUT_VOLTS_SCALE     2.7           // the scaling value for raw adc reading to get output (load) volts scaled by 100 [((10+2.2)/2.2)*(5/1023)*100]
 
-#define ONE_SECOND          50000         // count for number of interrupt in 1 second on interrupt period of 20us
-#define STATE_MACHINE_SKIPS 32            // State machine skip counter, gives some time to the voltage LPF to adapt to 
+// Safety Limits
+#define SAFETY_MAX_IN_CURRENT  300        // Maximum input current to enable safety limit (3 A)
+#define SAFETY_MAX_IN_POWER    1500       // Maximum input current to enable safety limit (15 watts)
 
-#define BUFF_MAX            32
+#define SERIAL_BUFF_MAX        32         // Maximum buffer size for receiving from serial
+
+#define ONE_SECOND             50000      // count for number of interrupt in 1 second on interrupt period of 20us
+#define STATE_MACHINE_SKIPS    32         // State machine skip counter, gives some time to the voltage LPF to adapt to 
 
 typedef LowPassBuffer<16, unsigned int> LPF; // Low pass filter uses a moving average window of 16 samples
+#define PWM_PID_P	       25        // PWM PID filter proportional divisor
 
 //------------------------------------------------------------------------------------------------------
 // global variables
@@ -58,6 +67,13 @@ enum charger_mode_t {MODE_OFF,            // The system is off
                      MODE_BATT_FLOAT,     // Battery float (constant voltage) charging mode
                     };
 
+enum safety_error_t { LIMIT_DISABLED,     // Safety system in disabled
+                      LIMIT_NORMAL,       // Safety system in normal mode
+                      LIMIT_VOLTAGE,      // Over-voltage detected
+                      LIMIT_CURRENT,      // Over-current detected
+                      LIMIT_POWER         // Over-power detected
+                    };
+
 struct system_states_t {
    int in_amps;                          // input (solar) amps in 10 mV (scaled by 100)
    int in_volts;                         // input (solar) volts in 10 mV (scaled by 100)
@@ -67,6 +83,9 @@ struct system_states_t {
    uint16_t pwm_duty;                    // pwm target duty cycle, set by set_pwm_duty function
    int target;                           // voltage, current or power target
    charger_mode_t mode;                  // state of the charge state machine
+
+   safety_error_t safety_limit_status;   // Safety limit status
+   bool safety_limit_enabled;            // Safety limit enabled flag
 } power_status;
 
 unsigned int g_seconds = 0;             // seconds from timer routine
@@ -148,7 +167,7 @@ void adjust_pwm(int target_difference) {
   int current_pwm = power_status.pwm_duty;
 
   // proportional delta control
-  int pwm_delta = 1 + (abs(target_difference) / 25);
+  int pwm_delta = 1 + (abs(target_difference) / PWM_PID_P);
   
   // adjust pwm either up or down based on difference sign
   if (target_difference < 0) {
@@ -158,6 +177,41 @@ void adjust_pwm(int target_difference) {
   }
   
   set_pwm_duty(current_pwm);
+}
+
+//------------------------------------------------------------------------------------------------------
+// Safety limit enable/disable
+// enable: true to enable safety limit mode, false to disable
+//------------------------------------------------------------------------------------------------------
+void safety_limit_enable(bool enable) {
+  power_status.safety_limit_enabled = enable;      
+
+  if (enable) {
+    power_status.safety_limit_status = LIMIT_NORMAL;     // Safety limit no error
+  } else {
+    power_status.safety_limit_status = LIMIT_DISABLED;
+  }
+}
+
+//------------------------------------------------------------------------------------------------------
+// Safety limit handler
+// Adjusts PWM to remain under the current and power limits
+// returns: safety_error_t if anything has happened
+//------------------------------------------------------------------------------------------------------
+safety_error_t  safety_limit_pwm() {
+
+    if (power_status.in_amps > SAFETY_MAX_IN_CURRENT) {
+        adjust_pwm(SAFETY_MAX_IN_CURRENT - power_status.in_amps);
+        return LIMIT_CURRENT;
+    }
+
+    if (power_status.in_watts > SAFETY_MAX_IN_POWER) {
+        adjust_pwm(SAFETY_MAX_IN_POWER - power_status.in_watts);
+        return LIMIT_POWER;
+    }
+
+    // no limits
+    return LIMIT_NORMAL;
 }
 
 //------------------------------------------------------------------------------------------------------
@@ -210,6 +264,15 @@ void state_switch(const charger_mode_t & mode, int target = 0) {
 //------------------------------------------------------------------------------------------------------
 void state_machine(void) {
 
+  // If safety mode is enabled, check and adjust PWM
+  if (power_status.safety_limit_enabled) {
+    power_status.safety_limit_status = safety_limit_pwm();
+
+    if (power_status.safety_limit_status != LIMIT_NORMAL) {  // Do nothing else if over the limit
+      return;
+    }
+  }
+
   // Skip adjusting pwm, to let time for the ADC LPF to catchup
   static unsigned int skip_counter = 0;
   skip_counter++;
@@ -234,9 +297,9 @@ void state_machine(void) {
     case MODE_BATT_FLOAT:
       Charger_State_Machine();
       break;
-    case MODE_OFF:
-    default: // other cases
-      break; // do nothing if it is in off mode
+    case MODE_OFF: // do nothing if it is in off mode
+    default: // other cases: do nothing
+      break;
   }
 }
 
@@ -260,6 +323,8 @@ void setup()                               // run once, when the sketch starts
   pinMode(PWM_ENABLE_PIN, OUTPUT);         // sets the digital pin as output
 
   state_switch(MODE_OFF);                  // start with charger state as off
+
+  safety_limit_enable(true);               // Safety limit error
 
   lpf_in_volts.Init();                     // initialize ADC low-pass filters
   lpf_out_volts.Init();
