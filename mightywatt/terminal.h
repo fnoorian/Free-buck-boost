@@ -94,7 +94,7 @@ void serve_command(const char * in_buff)
 
   #define stricmp strcasecmp
 
-  char cmd[BUFF_MAX]; // char array to store command
+  char cmd[SERIAL_BUFF_MAX]; // char array to store command
   unsigned int val; // Value in mA, mV, mW, or mOhm 
   sscanf(in_buff, "\"%[^\"]\": %d}", cmd, &val); // parse the string
 
@@ -140,11 +140,17 @@ void serialMonitor() {
 
   if (Serial.available() > 0)  
   {
-    // read until reaching '{'
-    while (Serial.read() != '{');
+    // read a byte
+    int c = Serial.read();
 
-    char in_buff[BUFF_MAX]; // Buffer in input
-    int end = Serial.readBytesUntil('}', in_buff, BUFF_MAX); // Read command from serial monitor
+    // if it is not the start of JSON ('{'), do 
+    if (c != '{') {
+        return;
+    }
+
+    // Read command from serial monitor
+    char in_buff[SERIAL_BUFF_MAX]; // Buffer in input
+    int end = Serial.readBytesUntil('}', in_buff, SERIAL_BUFF_MAX); 
     in_buff[end] = 0; // null terminate the string
 
     serve_command(in_buff);

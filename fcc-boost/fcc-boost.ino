@@ -51,7 +51,7 @@
 #define STATE_MACHINE_SKIPS    32         // State machine skip counter, gives some time to the voltage LPF to adapt to 
 
 typedef LowPassBuffer<16, unsigned int> LPF; // Low pass filter uses a moving average window of 16 samples
-#define PWM_PID_P	       25        // PWM PID filter proportional divisor
+#define PWM_PID_P	           25         // PWM PID filter proportional divisor
 
 //------------------------------------------------------------------------------------------------------
 // global variables

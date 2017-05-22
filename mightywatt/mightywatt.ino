@@ -24,7 +24,7 @@
 #define DVM_INPUT_RESISTANCE 330000 // differential input resistance
 // AD5691 DAC
 // </Device Information>
-#define BUFF_MAX 128
+#define SERIAL_BUFF_MAX 128
 
 // <Pins>
 const int REMOTE_PIN = 2;

@@ -32,7 +32,7 @@
 #define PWM_FULL            1023          // the actual value used by the Timer1 routines for 100% pwm duty cycle
 #define PWM_MAX             0.9*PWM_FULL  // the max value for pwm duty cyle 0-100.0%
 #define PWM_MIN             0.1*PWM_FULL  // the min value for pwm duty cyle 0-100.0%
-#define PWM_START           PWM_MIN  // the starting value for pwm duty cyle 0-100.0%
+#define PWM_START           PWM_MIN       // the starting value for pwm duty cyle 0-100.0%
 
 // MPPT configuration is in mppt.h
 
@@ -51,7 +51,7 @@
 #define STATE_MACHINE_SKIPS    16         // State machine skip counter, gives some time to the voltage LPF to adapt to 
 
 typedef LowPassBuffer<32, unsigned int> LPF; // Low pass filter uses a moving average window of 32 samples
-#define PWM_PID_P	       8         // PWM PID filter proportional divisor
+#define PWM_PID_P	           8          // PWM PID filter proportional divisor
 
 //------------------------------------------------------------------------------------------------------
 // global variables
